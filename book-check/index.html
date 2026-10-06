@@ -233,27 +233,46 @@ $('cls').onchange = () => selectClass($('cls').value);
 
 async function selectClass(cls) {
   currentCls = cls;
+  local = null;
   store.setLocal('cls', cls);
   $('result').hidden = true;
   const show = !!cls;
   $('progress').hidden = $('scanbox').hidden = $('missingbox').hidden = !show;
   if (!show) { stopCamera(); return; }
   $('progress').classList.add('loading');
-  try { renderStatus((await api('status', { cls })).status); appError(); }
+  try { applyStatus((await api('status', { cls })).status); appError(); }
   catch (e) { if (e.message !== 'auth') appError('Could not load class. ' + e.message); }
   finally { $('progress').classList.remove('loading'); }
 }
 
-function renderStatus(s) {
+/* The class book list is kept on the phone so a scan shows instantly;
+   the Sheet is updated in the background. */
+let local = null;            // { cls, year, total, books: Map(id -> { name, found }) }
+const pending = new Set();   // ids shown as found but not yet saved
+
+function applyStatus(s) {
   if (s.cls !== currentCls.toUpperCase()) return; // teacher switched class meanwhile
-  $('found').textContent = s.found;
-  $('total').textContent = s.total;
-  $('barfill').style.width = s.total ? (s.found / s.total * 100) + '%' : '0';
-  $('meta').textContent = `${s.year} · ${s.missing.length} missing`;
-  $('done').hidden = !(s.total > 0 && s.missing.length === 0);
-  $('mcount').textContent = s.missing.length ? '· ' + s.missing.length : '';
-  $('missing').innerHTML = s.missing.length
-    ? s.missing.map(b => `<li><code>${esc(b.id)}</code><span>${esc(b.name)}</span></li>`).join('')
+  const prev = local && local.cls === s.cls ? local.books : new Map();
+  const books = new Map();
+  prev.forEach((b, id) => { if (b.found) books.set(id, b); });  // keep names of books already found
+  (s.foundList || []).forEach(b => books.set(b.id, { name: b.name, found: true }));
+  s.missing.forEach(b => books.set(b.id, { name: b.name, found: pending.has(b.id) }));
+  local = { cls: s.cls, year: s.year, total: s.total, books };
+  draw();
+}
+
+function draw() {
+  if (!local) return;
+  const missing = [...local.books].filter(([, b]) => !b.found).map(([id, b]) => ({ id, name: b.name }));
+  const found = local.total - missing.length;
+  $('found').textContent = found;
+  $('total').textContent = local.total;
+  $('barfill').style.width = local.total ? (found / local.total * 100) + '%' : '0';
+  $('meta').textContent = `${local.year} · ${missing.length} missing` + (pending.size ? ` · saving ${pending.size}…` : '');
+  $('done').hidden = !(local.total > 0 && missing.length === 0);
+  $('mcount').textContent = missing.length ? '· ' + missing.length : '';
+  $('missing').innerHTML = missing.length
+    ? missing.map(b => `<li><code>${esc(b.id)}</code><span>${esc(b.name)}</span></li>`).join('')
     : '<li class="empty">Nothing missing.</li>';
 }
 
@@ -262,6 +281,7 @@ let audio;
 function beep(kind) {
   if (!audio) return;
   const tones = { ok: [880], warn: [520, 520], bad: [220] }[kind];
+  if (!tones) return;
   tones.forEach((f, i) => {
     const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + i * 0.16;
     o.frequency.value = f; o.connect(g); g.connect(audio.destination);
@@ -294,7 +314,18 @@ function onCode(raw) {
   const now = Date.now();
   if (now - (recent.get(code) || 0) < 4000) return;
   recent.set(code, now);
-  queue.push({ code, cls: currentCls });
+
+  const b = local && local.cls === currentCls.toUpperCase() ? local.books.get(code) : null;
+  if (b && b.found) { showResult('warn', 'Already checked', `${code} · ${b.name}`); return; }
+  if (b) {
+    b.found = true; pending.add(code);
+    showResult('ok', '✓ ' + (b.name || code), code);
+    draw();
+    queue.push({ code, cls: currentCls, shown: true });
+  } else {
+    showResult('plain', 'Checking…', code); // not in this class: ask the Sheet
+    queue.push({ code, cls: currentCls, shown: false });
+  }
   work();
 }
 
@@ -302,23 +333,28 @@ async function work() {
   if (working) return;
   working = true;
   while (queue.length) {
-    const { code, cls } = queue.shift();
+    const item = queue.shift();
     try {
-      const out = await api('scan', { cls, id: code });
+      const out = await api('scan', { cls: item.cls, id: item.code });
+      pending.delete(item.code);
       const b = out.book;
-      if (out.result === 'ok') showResult('ok', '✓ ' + (b.name || b.id), b.id);
-      else if (out.result === 'duplicate') showResult('warn', 'Already checked', `${b.id} · ${b.name}`);
-      else if (out.result === 'other_class') showResult('warn', `Belongs to ${b.cls}`, `${b.id} · ${b.name} — recorded as found`);
-      else showResult('bad', 'Not in the book list', code);
-      renderStatus(out.status);
+      if (out.result === 'other_class') showResult('warn', `Belongs to ${b.cls}`, `${b.id} · ${b.name} — recorded as found`);
+      else if (out.result === 'unknown') showResult('bad', 'Not in the book list', item.code);
+      else if (!item.shown) showResult(out.result === 'ok' ? 'ok' : 'warn', out.result === 'ok' ? '✓ ' + (b.name || b.id) : 'Already checked', `${b.id} · ${b.name}`);
+      applyStatus(out.status);
       appError();
     } catch (e) {
-      if (e.message === 'auth') { queue.length = 0; break; }
-      recent.delete(code);
-      showResult('bad', 'Not saved — please scan again', e.message);
+      pending.delete(item.code);
+      if (e.message === 'auth') { queue.length = 0; pending.clear(); break; }
+      recent.delete(item.code);
+      const b = local && local.books.get(item.code);
+      if (b && item.shown) b.found = false;
+      draw();
+      showResult('bad', 'Not saved — please scan again', `${item.code}${b ? ' · ' + b.name : ''} (${e.message})`);
     }
   }
   working = false;
+  draw();
 }
 
 let scanner, running = false, wakeLock = null;

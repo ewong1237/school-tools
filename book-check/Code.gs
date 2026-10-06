@@ -238,7 +238,8 @@ function classStatus_(cls, d) {
     });
   });
   const missing = books.filter(b => !b.found).map(b => ({ id: b.id, name: b.name }));
-  return { cls: String(cls).toUpperCase(), year: d.year, total: books.length, found: books.length - missing.length, missing };
+  const foundList = books.filter(b => b.found).map(b => ({ id: b.id, name: b.name }));
+  return { cls: String(cls).toUpperCase(), year: d.year, total: books.length, found: foundList.length, missing, foundList };
 }
 
 function scan_(cls, rawId, email) {
