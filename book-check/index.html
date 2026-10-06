@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f1">
+<title>Book Check</title>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f5f1; --card: #ffffff; --ink: #1c2622; --muted: #75807a; --line: #e6e8e2;
+    --accent: #1f4d3a; --accent-ink: #ffffff;
+    --ok: #2f8a55; --ok-bg: #e8f4ec; --warn: #a86a12; --warn-bg: #fbf1df;
+    --bad: #b8392e; --bad-bg: #f9e7e5; --plain-bg: #f0f1ed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121614; --card: #1b201d; --ink: #e8ece9; --muted: #8f9a94; --line: #2a302c;
+      --accent: #a9d3b5; --accent-ink: #10231a;
+      --ok: #7fcf99; --ok-bg: #18301f; --warn: #e5b45e; --warn-bg: #33281a;
+      --bad: #f08a80; --bad-bg: #3a1f1c; --plain-bg: #232925;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  main { max-width: 480px; margin: 0 auto; padding: 20px 16px calc(32px + env(safe-area-inset-bottom)); }
+  [hidden] { display: none !important; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  h1 { font-size: 20px; font-weight: 650; margin: 0; letter-spacing: -.3px; }
+  .who { font-size: 12px; color: var(--muted); }
+  .who button { border: 0; background: none; color: var(--muted); text-decoration: underline; font: inherit; padding: 0 0 0 6px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+  label.small { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  select, input { width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; appearance: none; -webkit-appearance: none; }
+  select { background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 20px) 50%, calc(100% - 15px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+  button.primary { width: 100%; font: inherit; font-weight: 600; border: 0; border-radius: 12px;
+    padding: 14px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+  button.ghost { font: inherit; font-weight: 600; border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 16px; background: var(--card); color: var(--ink); cursor: pointer; }
+  button:disabled { opacity: .5; }
+
+  /* progress */
+  .count { display: flex; align-items: baseline; gap: 8px; margin: 2px 0 10px; }
+  .count b { font-size: 44px; font-weight: 650; letter-spacing: -1.5px; line-height: 1; }
+  .count span { color: var(--muted); font-size: 18px; }
+  .bar { height: 8px; border-radius: 8px; background: var(--plain-bg); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--ok); border-radius: 8px; transition: width .3s; }
+  .meta { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .done { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+
+  /* scanner */
+  .viewport { position: relative; border-radius: 12px; overflow: hidden; background: #000; margin-bottom: 12px; }
+  #reader video { display: block; width: 100%; }
+  .flash { position: absolute; inset: 0; pointer-events: none; border: 4px solid transparent; border-radius: 12px; transition: border-color .15s; }
+  .flash.ok { border-color: var(--ok); } .flash.warn { border-color: var(--warn); } .flash.bad { border-color: var(--bad); }
+
+  /* last result */
+  .result { border-radius: 12px; padding: 12px 14px; background: var(--plain-bg); margin-top: 12px; }
+  .result .t { font-weight: 650; }
+  .result .s { font-size: 14px; color: var(--muted); }
+  .result.ok { background: var(--ok-bg); } .result.ok .t { color: var(--ok); }
+  .result.warn { background: var(--warn-bg); } .result.warn .t { color: var(--warn); }
+  .result.bad { background: var(--bad-bg); } .result.bad .t { color: var(--bad); }
+
+  .manual { display: flex; gap: 8px; margin-top: 12px; }
+  .manual input { flex: 1; }
+
+  /* missing list */
+  h2 { font-size: 14px; font-weight: 650; margin: 0 0 8px; }
+  h2 span { color: var(--muted); font-weight: 500; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  li:first-child { border-top: 0; }
+  li code { font: 13px ui-monospace, Menlo, monospace; color: var(--muted); min-width: 76px; }
+  .empty { font-size: 14px; color: var(--muted); }
+
+  .center { text-align: center; padding: 28px 16px; }
+  .center p { color: var(--muted); margin: 6px 0 20px; }
+  #gbtn { display: flex; justify-content: center; min-height: 44px; }
+  .err { color: var(--bad); font-size: 14px; margin-top: 12px; }
+  .loading { opacity: .55; transition: opacity .2s; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Book Check</h1>
+    <div class="who" id="who" hidden><span id="email"></span><button id="signout">Sign out</button></div>
+  </header>
+
+  <!-- Sign-in -->
+  <section id="signin" class="card center">
+    <h2 style="font-size:18px">Sign in to start</h2>
+    <p>Use your @sjps.edu.hk account.</p>
+    <div id="gbtn"></div>
+    <div class="err" id="signin-err" hidden></div>
+  </section>
+
+  <!-- App -->
+  <section id="app" hidden>
+    <div class="card">
+      <label class="small" for="cls">Class</label>
+      <select id="cls"><option value="">Loading…</option></select>
+    </div>
+
+    <div class="card" id="progress" hidden>
+      <div class="count"><b id="found">0</b><span>/ <span id="total">0</span> found</span></div>
+      <div class="bar"><i id="barfill"></i></div>
+      <div class="meta" id="meta"></div>
+      <div class="done" id="done" hidden>✓ All books found</div>
+    </div>
+
+    <div class="card" id="scanbox" hidden>
+      <div class="viewport" id="viewport" hidden><div id="reader"></div><div class="flash" id="flash"></div></div>
+      <button class="primary" id="toggle">Start scanning</button>
+      <div class="result" id="result" hidden><div class="t" id="rt"></div><div class="s" id="rs"></div></div>
+      <form class="manual" id="manual" autocomplete="off">
+        <input id="manual-id" placeholder="Type a BookID" autocapitalize="none" spellcheck="false">
+        <button class="ghost" type="submit">Add</button>
+      </form>
+    </div>
+
+    <div class="card" id="missingbox" hidden>
+      <h2>Missing <span id="mcount"></span></h2>
+      <ul id="missing"></ul>
+    </div>
+    <div class="err" id="app-err" hidden></div>
+  </section>
+</main>
+
+<script>
+/* ===== Settings: fill these in ===== */
+const CONFIG = {
+  CLIENT_ID: 'PASTE_YOUR_CLIENT_ID.apps.googleusercontent.com',
+  API_URL: 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL',
+  DOMAIN: 'sjps.edu.hk',
+};
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, v); } catch {} },
+  del(k) { try { sessionStorage.removeItem(k); } catch {} },
+  getLocal(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  setLocal(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------- Sign-in ---------- */
+let token = null;
+
+function jwtPayload(t) {
+  try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return null; }
+}
+function tokenValid(t) {
+  const p = t && jwtPayload(t);
+  return p && p.exp * 1000 > Date.now() + 60000 && p.hd === CONFIG.DOMAIN;
+}
+
+function onCredential(resp) {
+  const p = jwtPayload(resp.credential);
+  if (!p || p.hd !== CONFIG.DOMAIN) { showSignin('Please use your @' + CONFIG.DOMAIN + ' account.'); return; }
+  token = resp.credential;
+  store.set('token', token);
+  enterApp(p.email);
+}
+
+function showSignin(msg) {
+  token = null; store.del('token');
+  stopCamera();
+  $('app').hidden = true; $('who').hidden = true; $('signin').hidden = false;
+  $('signin-err').hidden = !msg; $('signin-err').textContent = msg || '';
+}
+
+function initGoogle() {
+  if (!window.google || !google.accounts) { setTimeout(initGoogle, 100); return; }
+  google.accounts.id.initialize({
+    client_id: CONFIG.CLIENT_ID, callback: onCredential, hd: CONFIG.DOMAIN,
+    auto_select: true, cancel_on_tap_outside: false, use_fedcm_for_prompt: true,
+  });
+  google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', width: 260 });
+  const saved = store.get('token');
+  if (tokenValid(saved)) { token = saved; enterApp(jwtPayload(saved).email); }
+  else google.accounts.id.prompt();
+}
+
+$('signout').onclick = () => {
+  if (window.google) google.accounts.id.disableAutoSelect();
+  showSignin();
+};
+
+/* ---------- API ---------- */
+async function api(action, data = {}) {
+  if (!tokenValid(token)) { showSignin('Your sign-in expired. Please sign in again.'); throw new Error('auth'); }
+  const res = await fetch(CONFIG.API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight
+    body: JSON.stringify(Object.assign({ action, token }, data)),
+  });
+  const out = await res.json();
+  if (out.auth === false) { showSignin(out.error); throw new Error('auth'); }
+  if (!out.ok) throw new Error(out.error || 'Something went wrong.');
+  return out;
+}
+
+function appError(msg) { $('app-err').hidden = !msg; $('app-err').textContent = msg || ''; }
+
+/* ---------- App ---------- */
+let currentCls = '';
+
+async function enterApp(email) {
+  $('signin').hidden = true; $('app').hidden = false;
+  $('email').textContent = email; $('who').hidden = false;
+  try {
+    const out = await api('classes');
+    const last = store.getLocal('cls');
+    $('cls').innerHTML = '<option value="">Choose a class</option>' +
+      out.classes.map(c => `<option${c === last ? ' selected' : ''}>${esc(c)}</option>`).join('');
+    if (last && out.classes.includes(last)) selectClass(last);
+  } catch (e) { if (e.message !== 'auth') appError('Could not load classes. ' + e.message); }
+}
+
+$('cls').onchange = () => selectClass($('cls').value);
+
+async function selectClass(cls) {
+  currentCls = cls;
+  store.setLocal('cls', cls);
+  $('result').hidden = true;
+  const show = !!cls;
+  $('progress').hidden = $('scanbox').hidden = $('missingbox').hidden = !show;
+  if (!show) { stopCamera(); return; }
+  $('progress').classList.add('loading');
+  try { renderStatus((await api('status', { cls })).status); appError(); }
+  catch (e) { if (e.message !== 'auth') appError('Could not load class. ' + e.message); }
+  finally { $('progress').classList.remove('loading'); }
+}
+
+function renderStatus(s) {
+  if (s.cls !== currentCls.toUpperCase()) return; // teacher switched class meanwhile
+  $('found').textContent = s.found;
+  $('total').textContent = s.total;
+  $('barfill').style.width = s.total ? (s.found / s.total * 100) + '%' : '0';
+  $('meta').textContent = `${s.year} · ${s.missing.length} missing`;
+  $('done').hidden = !(s.total > 0 && s.missing.length === 0);
+  $('mcount').textContent = s.missing.length ? '· ' + s.missing.length : '';
+  $('missing').innerHTML = s.missing.length
+    ? s.missing.map(b => `<li><code>${esc(b.id)}</code><span>${esc(b.name)}</span></li>`).join('')
+    : '<li class="empty">Nothing missing.</li>';
+}
+
+/* ---------- Feedback (sound + colour; iPhone has no web vibration) ---------- */
+let audio;
+function beep(kind) {
+  if (!audio) return;
+  const tones = { ok: [880], warn: [520, 520], bad: [220] }[kind];
+  tones.forEach((f, i) => {
+    const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + i * 0.16;
+    o.frequency.value = f; o.connect(g); g.connect(audio.destination);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.start(t); o.stop(t + 0.13);
+  });
+  if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 60 : [60, 60, 60]);
+}
+
+let flashTimer;
+function showResult(kind, title, sub) {
+  $('result').className = 'result ' + kind;
+  $('rt').textContent = title; $('rs').textContent = sub || '';
+  $('result').hidden = false;
+  $('flash').className = 'flash ' + kind;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { $('flash').className = 'flash'; }, 700);
+  beep(kind);
+}
+
+/* ---------- Scanning ---------- */
+const recent = new Map(); // code -> time, to ignore the same label held in view
+const queue = [];
+let working = false;
+
+function onCode(raw) {
+  const code = String(raw).trim().toLowerCase();
+  if (!code || !currentCls) return;
+  const now = Date.now();
+  if (now - (recent.get(code) || 0) < 4000) return;
+  recent.set(code, now);
+  queue.push({ code, cls: currentCls });
+  work();
+}
+
+async function work() {
+  if (working) return;
+  working = true;
+  while (queue.length) {
+    const { code, cls } = queue.shift();
+    try {
+      const out = await api('scan', { cls, id: code });
+      const b = out.book;
+      if (out.result === 'ok') showResult('ok', '✓ ' + (b.name || b.id), b.id);
+      else if (out.result === 'duplicate') showResult('warn', 'Already checked', `${b.id} · ${b.name}`);
+      else if (out.result === 'other_class') showResult('warn', `Belongs to ${b.cls}`, `${b.id} · ${b.name} — recorded as found`);
+      else showResult('bad', 'Not in the book list', code);
+      renderStatus(out.status);
+      appError();
+    } catch (e) {
+      if (e.message === 'auth') { queue.length = 0; break; }
+      recent.delete(code);
+      showResult('bad', 'Not saved — please scan again', e.message);
+    }
+  }
+  working = false;
+}
+
+let scanner, running = false, wakeLock = null;
+
+async function startCamera() {
+  if (!window.Html5Qrcode) { appError('Scanner could not load. Please reload the page.'); return; }
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}
+  $('toggle').disabled = true;
+  $('viewport').hidden = false;
+  try {
+    const F = Html5QrcodeSupportedFormats;
+    scanner = scanner || new Html5Qrcode('reader', {
+      verbose: false, formatsToSupport: [F.CODE_128, F.CODE_39, F.QR_CODE],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    });
+    await scanner.start({ facingMode: 'environment' }, {
+      fps: 12,
+      qrbox: (w, h) => ({ width: Math.floor(w * 0.85), height: Math.floor(Math.min(h * 0.6, w * 0.45)) }),
+    }, onCode);
+    running = true;
+    $('toggle').textContent = 'Stop scanning';
+    try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
+  } catch (e) {
+    $('viewport').hidden = true;
+    const m = String(e?.message || e);
+    appError(/NotAllowed|denied|permission/i.test(m)
+      ? 'Camera permission was blocked. In Settings › Safari › Camera, choose Allow, then reload.'
+      : 'Could not start camera. ' + m);
+  } finally { $('toggle').disabled = false; }
+}
+
+async function stopCamera() {
+  if (!running) return;
+  running = false;
+  try { await scanner.stop(); } catch {}
+  try { wakeLock?.release(); } catch {}
+  $('viewport').hidden = true;
+  $('toggle').textContent = 'Start scanning';
+}
+
+$('toggle').onclick = () => running ? stopCamera() : startCamera();
+
+$('manual').onsubmit = e => {
+  e.preventDefault();
+  const v = $('manual-id').value;
+  if (!v.trim()) return;
+  recent.delete(v.trim().toLowerCase());
+  onCode(v);
+  $('manual-id').value = '';
+};
+
+window.addEventListener('pagehide', () => { if (running) scanner.stop().catch(() => {}); });
+initGoogle();
+</script>
+</body>
+</html>
