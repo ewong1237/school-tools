@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book Labels</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<style>
+  :root { --bg: #f5f5f1; --card: #fff; --ink: #1c2622; --muted: #75807a; --line: #e6e8e2; --accent: #1f4d3a; --accent-ink: #fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121614; --card: #1b201d; --ink: #e8ece9; --muted: #8f9a94; --line: #2a302c; --accent: #a9d3b5; --accent-ink: #10231a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin: 16px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select, textarea { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  textarea { min-height: 120px; font: 13px ui-monospace, Menlo, monospace; resize: vertical; }
+  button { font: inherit; font-weight: 600; border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; background: var(--card); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-top: 12px; }
+  .row .grow { flex: 1; }
+  .err { color: #b8392e; font-size: 13px; }
+
+  /* ----- printable sheet: real millimetres ----- */
+  .sheet { background: #fff; color: #000; width: 210mm; min-height: 297mm; padding: 8mm; margin: 0 auto 16px;
+    box-shadow: 0 2px 12px #0002; display: flex; flex-wrap: wrap; align-content: flex-start; }
+  .label { display: flex; align-items: center; gap: 2mm; padding: 1mm 3mm; border: 0.2mm dashed #bbb; margin: 0 -0.2mm -0.2mm 0; }
+  .label svg { display: block; }
+  .label .id { font: 600 2.8mm/1 ui-monospace, Menlo, monospace; white-space: nowrap; }
+  .preview-wrap { overflow-x: auto; padding-bottom: 8px; }
+
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    main > *:not(#sheets) { display: none !important; }
+    main { padding: 0; max-width: none; }
+    .preview-wrap { overflow: visible; }
+    .sheet { box-shadow: none; margin: 0; page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Book Labels</h1>
+  <div class="muted">Thin Code 128 labels for book spines. Prints on plain A4 — cut along the dashed lines.</div>
+
+  <div class="card">
+    <strong>1. BookIDs</strong>
+    <div class="muted" style="margin:4px 0 10px">Paste the BookID column from the Sheet (one per line), or generate a range.</div>
+    <div class="grid">
+      <div><label for="g-cls">Class</label><input id="g-cls" value="5a"></div>
+      <div><label for="g-yr">Year (2 digits)</label><input id="g-yr" value="26" inputmode="numeric"></div>
+      <div><label for="g-from">From</label><input id="g-from" value="1" inputmode="numeric"></div>
+      <div><label for="g-to">To</label><input id="g-to" value="32" inputmode="numeric"></div>
+    </div>
+    <div class="row"><button id="gen">Generate range</button><span class="muted" id="gen-eg"></span></div>
+    <div style="margin-top:12px"><textarea id="ids" placeholder="5a260001&#10;5a260002&#10;…"></textarea></div>
+  </div>
+
+  <div class="card">
+    <strong>2. Size</strong>
+    <div class="grid" style="margin-top:10px">
+      <div><label for="h">Barcode height</label>
+        <select id="h"><option value="6">6 mm (thinnest)</option><option value="8" selected>8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option></select></div>
+      <div><label for="m">Bar width</label>
+        <select id="m"><option value="0.25">Fine (0.25 mm)</option><option value="0.3" selected>Normal (0.3 mm)</option><option value="0.38">Bold (0.38 mm)</option></select></div>
+    </div>
+    <div class="row"><span class="grow muted" id="summary"></span><button class="primary" id="print">Print</button></div>
+    <div class="err" id="err" hidden></div>
+  </div>
+
+  <div id="sheets" class="preview-wrap"></div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(4, '0');
+
+function genRange() {
+  const cls = $('g-cls').value.trim().toLowerCase(), yr = $('g-yr').value.trim();
+  const from = parseInt($('g-from').value, 10), to = parseInt($('g-to').value, 10);
+  if (!cls || !/^\d{2}$/.test(yr) || !(from > 0) || !(to >= from) || to - from > 999) { showErr('Check the range: class, 2-digit year, From ≤ To.'); return; }
+  const out = [];
+  for (let i = from; i <= to; i++) out.push(cls + yr + pad(i));
+  $('ids').value = out.join('\n');
+  render();
+}
+
+function showErr(m) { $('err').hidden = !m; $('err').textContent = m || ''; }
+
+function readIds() {
+  const seen = new Set();
+  return $('ids').value.split(/[\s,]+/).map(s => s.trim().toLowerCase()).filter(s => s && !seen.has(s) && seen.add(s));
+}
+
+function makeLabel(id, hMM, mMM) {
+  const div = document.createElement('div');
+  div.className = 'label';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  JsBarcode(svg, id, { format: 'CODE128', width: 1, height: 10, margin: 0, displayValue: false, background: '#ffffff' });
+  const modules = parseFloat(svg.getAttribute('width'));
+  svg.setAttribute('viewBox', `0 0 ${modules} 10`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.width = (modules * mMM).toFixed(2) + 'mm';
+  svg.style.height = hMM + 'mm';
+  // quiet zone of 10 modules on the left; text sits on the right
+  svg.style.marginLeft = Math.max(0, 10 * mMM - 3).toFixed(2) + 'mm';
+  const t = document.createElement('span');
+  t.className = 'id'; t.textContent = id;
+  t.style.marginLeft = Math.max(2, 10 * mMM).toFixed(2) + 'mm';
+  div.append(svg, t);
+  return div;
+}
+
+function render() {
+  showErr('');
+  const ids = readIds();
+  const h = parseFloat($('h').value), m = parseFloat($('m').value);
+  const box = $('sheets');
+  box.innerHTML = '';
+  if (!ids.length) { $('summary').textContent = 'No labels yet.'; return; }
+
+  // lay labels onto A4 sheets (190 mm × 281 mm usable)
+  let sheet = null, perSheet = 0;
+  const newSheet = () => { sheet = document.createElement('div'); sheet.className = 'sheet'; box.append(sheet); };
+  newSheet();
+  ids.forEach(id => {
+    try { sheet.append(makeLabel(id, h, m)); }
+    catch { showErr('Could not make a barcode for: ' + id); }
+  });
+  // split overflow onto extra pages
+  let labels = [...sheet.children];
+  let pages = 1;
+  while (labels.length) {
+    const overflow = labels.filter(l => l.getBoundingClientRect().bottom > sheet.getBoundingClientRect().top + mmToPx(8 + 281));
+    if (!overflow.length) break;
+    if (!perSheet) perSheet = labels.length - overflow.length;
+    newSheet(); pages++;
+    overflow.forEach(l => sheet.append(l));
+    labels = overflow;
+  }
+  $('summary').textContent = `${ids.length} labels · ${pages} page${pages > 1 ? 's' : ''}${perSheet ? ' · ' + perSheet + ' per page' : ''}`;
+}
+
+function mmToPx(mm) {
+  const d = document.createElement('div');
+  d.style.width = mm + 'mm'; d.style.position = 'absolute'; d.style.visibility = 'hidden';
+  document.body.append(d);
+  const px = d.getBoundingClientRect().width; d.remove();
+  return px;
+}
+
+const updateEg = () => { $('gen-eg').textContent = 'e.g. ' + $('g-cls').value.trim().toLowerCase() + $('g-yr').value.trim() + pad(parseInt($('g-from').value, 10) || 1); };
+['g-cls', 'g-yr', 'g-from'].forEach(id => $(id).addEventListener('input', updateEg));
+$('gen').onclick = genRange;
+$('ids').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(render, 300); });
+$('h').onchange = $('m').onchange = render;
+$('print').onclick = () => window.print();
+updateEg();
+genRange();
+</script>
+</body>
+</html>
