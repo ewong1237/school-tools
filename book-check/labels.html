@@ -50,7 +50,9 @@
   .sheet { background: #fff; width: 210mm; min-height: 297mm; padding: 8mm; margin: 0 auto 16px;
     box-shadow: 0 2px 12px #0002; display: flex; flex-wrap: wrap; align-content: flex-start; }
   .label { display: flex; align-items: center; border: 0.2mm dashed #bbb; margin: 0 -0.2mm -0.2mm 0; }
+  .label { flex-direction: column; justify-content: center; }
   .label svg { display: block; }
+  .label .id { font: 600 2.4mm/1 ui-monospace, Menlo, monospace; color: #000; margin-top: 0.6mm; letter-spacing: 0.2mm; }
 
   @page { size: A4; margin: 0; }
   @media print {
@@ -103,6 +105,8 @@
         <select id="h"><option value="6">6 mm (thinnest)</option><option value="8" selected>8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option></select></div>
       <div><label class="small" for="m">Bar width</label>
         <select id="m"><option value="0.25">Fine (0.25 mm)</option><option value="0.3" selected>Normal (0.3 mm)</option><option value="0.38">Bold (0.38 mm)</option></select></div>
+      <div><label class="small" for="txt">BookID text</label>
+        <select id="txt"><option value="1" selected>Show under barcode</option><option value="0">Hide</option></select></div>
     </div>
     <div class="row" style="margin-top:12px"><span class="grow muted" id="summary"></span><button class="primary" id="print">Print</button></div>
     <div class="muted" style="margin-top:6px">Print at 100% / Actual size (not “Fit to page”).</div>
@@ -215,7 +219,7 @@ $('all').onclick = () => { shown().forEach(b => selected.add(b.id)); renderList(
 $('none').onclick = () => { selected.clear(); renderList(); render(); };
 
 /* ---------- labels ---------- */
-function makeLabel(id, hMM, mMM) {
+function makeLabel(id, hMM, mMM, showText) {
   const div = document.createElement('div');
   div.className = 'label';
   const quiet = Math.max(2.5, 10 * mMM); // Code 128 needs ~10 bar-widths of white on each side
@@ -228,6 +232,11 @@ function makeLabel(id, hMM, mMM) {
   svg.style.width = (modules * mMM).toFixed(2) + 'mm';
   svg.style.height = hMM + 'mm';
   div.append(svg);
+  if (showText) {
+    const t = document.createElement('div');
+    t.className = 'id'; t.textContent = id;
+    div.append(t);
+  }
   return div;
 }
 
@@ -241,7 +250,7 @@ function mmToPx(mm) {
 
 function render() {
   const ids = allIds();
-  const h = parseFloat($('h').value), m = parseFloat($('m').value);
+  const h = parseFloat($('h').value), m = parseFloat($('m').value), showText = $('txt').value === '1';
   const box = $('sheets');
   box.innerHTML = '';
   if (!ids.length) { $('summary').textContent = 'No labels selected yet.'; return; }
@@ -250,7 +259,7 @@ function render() {
   const newSheet = () => { sheet = document.createElement('div'); sheet.className = 'sheet'; box.append(sheet); };
   newSheet();
   const bad = [];
-  ids.forEach(id => { try { sheet.append(makeLabel(id, h, m)); } catch { bad.push(id); } });
+  ids.forEach(id => { try { sheet.append(makeLabel(id, h, m, showText)); } catch { bad.push(id); } });
   if (bad.length) showErr('Could not make a barcode for: ' + bad.join(', '));
 
   // move labels that run past the A4 printable area onto new sheets
@@ -269,7 +278,7 @@ function render() {
 }
 
 $('ids').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(render, 300); });
-$('h').onchange = $('m').onchange = render;
+$('h').onchange = $('m').onchange = $('txt').onchange = render;
 $('print').onclick = () => window.print();
 
 // show IDs from the link straight away (before sign-in finishes)
