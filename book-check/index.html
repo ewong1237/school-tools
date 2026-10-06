@@ -203,7 +203,10 @@ async function api(action, data = {}) {
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight
     body: JSON.stringify(Object.assign({ action, token }, data)),
   });
-  const out = await res.json();
+  const text = await res.text();
+  let out;
+  try { out = JSON.parse(text); }
+  catch { throw new Error('Server said: ' + (new DOMParser().parseFromString(text, 'text/html').body.textContent || text).replace(/\s+/g, ' ').trim().slice(0, 200)); }
   if (out.auth === false) { showSignin(out.error); throw new Error('auth'); }
   if (!out.ok) throw new Error(out.error || 'Something went wrong.');
   return out;
