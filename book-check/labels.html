@@ -54,6 +54,13 @@
   .label svg { display: block; }
   .label .id { font: 600 2.4mm/1 ui-monospace, Menlo, monospace; color: #000; margin-top: 0.6mm; letter-spacing: 0.2mm; }
 
+  /* Unistat U4271: 4 x 16 labels, 48.3 x 16.9 mm, no gaps (layout assumed centred on A4) */
+  .sheet.u4271 { padding: 0; height: 297mm; overflow: hidden; position: relative; display: block; }
+  .u4271 .grid { position: absolute; display: grid; grid-template-columns: repeat(4, 48.3mm); grid-auto-rows: 16.9mm; }
+  .u4271 .cell { display: flex; align-items: center; justify-content: center; }
+  .u4271 .label { border: 0; margin: 0; }
+  @media screen { .u4271 .cell { outline: 0.2mm solid #e3e3e3; outline-offset: -0.1mm; } }
+
   @page { size: A4; margin: 0; }
   @media print {
     body { background: #fff; }
@@ -69,7 +76,7 @@
   <header>
     <div>
       <h1>Book Labels</h1>
-      <div class="muted">Thin Code 128 labels for book spines. Plain A4 — cut along the dashed lines.</div>
+      <div class="muted">Thin Code 128 labels for book spines.</div>
     </div>
     <div class="muted" id="who" hidden><span id="email"></span> <button class="link" id="signout">Sign out</button></div>
   </header>
@@ -99,17 +106,26 @@
   </div>
 
   <div class="card">
-    <strong>2. Size &amp; print</strong>
+    <strong>2. Paper, size &amp; print</strong>
     <div class="sizes">
+      <div><label class="small" for="paper">Paper</label>
+        <select id="paper"><option value="u4271" selected>Unistat U4271 (4 × 16)</option><option value="plain">Plain A4 (cut by hand)</option></select></div>
+      <div class="u-only"><label class="small" for="skip">Start at label #</label>
+        <input id="skip" type="number" min="1" max="64" value="1" inputmode="numeric"></div>
+      <div class="u-only"><label class="small" for="dx">Move right (mm)</label>
+        <input id="dx" type="number" step="0.5" value="0" inputmode="decimal"></div>
+      <div class="u-only"><label class="small" for="dy">Move down (mm)</label>
+        <input id="dy" type="number" step="0.5" value="0" inputmode="decimal"></div>
       <div><label class="small" for="h">Barcode height</label>
-        <select id="h"><option value="6">6 mm (thinnest)</option><option value="8" selected>8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option></select></div>
+        <select id="h"><option value="6">6 mm (thinnest)</option><option value="8">8 mm</option><option value="10" selected>10 mm</option><option value="12">12 mm</option></select></div>
       <div><label class="small" for="m">Bar width</label>
         <select id="m"><option value="0.25">Fine (0.25 mm)</option><option value="0.3" selected>Normal (0.3 mm)</option><option value="0.38">Bold (0.38 mm)</option></select></div>
       <div><label class="small" for="txt">BookID text</label>
         <select id="txt"><option value="1" selected>Show under barcode</option><option value="0">Hide</option></select></div>
     </div>
     <div class="row" style="margin-top:12px"><span class="grow muted" id="summary"></span><button class="primary" id="print">Print</button></div>
-    <div class="muted" style="margin-top:6px">Print at 100% / Actual size (not “Fit to page”).</div>
+    <div class="muted" style="margin-top:6px">Print at 100% / Actual size (not “Fit to page”).
+      <span class="u-only">Tip: print on plain paper first, hold it over a label sheet against the light, then adjust “Move right / down” (negative = left / up).</span></div>
   </div>
 
   <div id="sheets" class="preview-wrap"></div>
@@ -255,6 +271,8 @@ function render() {
   box.innerHTML = '';
   if (!ids.length) { $('summary').textContent = 'No labels selected yet.'; return; }
 
+  if ($('paper').value === 'u4271') { renderU4271(ids, h, m, showText); return; }
+
   let sheet;
   const newSheet = () => { sheet = document.createElement('div'); sheet.className = 'sheet'; box.append(sheet); };
   newSheet();
@@ -277,8 +295,39 @@ function render() {
   $('summary').textContent = `${ids.length} label${ids.length > 1 ? 's' : ''} · ${pages} page${pages > 1 ? 's' : ''}${perPage ? ' · ' + perPage + ' per page' : ''}`;
 }
 
+const U = { cols: 4, rows: 16, w: 48.3, h: 16.9 };
+function renderU4271(ids, h, m, showText) {
+  const per = U.cols * U.rows;
+  const skip = Math.min(per - 1, Math.max(0, (parseInt($('skip').value, 10) || 1) - 1));
+  const dx = parseFloat($('dx').value) || 0, dy = parseFloat($('dy').value) || 0;
+  const left = (210 - U.cols * U.w) / 2 + dx, top = (297 - U.rows * U.h) / 2 + dy;
+  const cells = Array(skip).fill(null).concat(ids);
+  const bad = [];
+  let pages = 0;
+  for (let i = 0; i < cells.length; i += per) {
+    const sheet = document.createElement('div'); sheet.className = 'sheet u4271';
+    const grid = document.createElement('div'); grid.className = 'grid';
+    grid.style.left = left + 'mm'; grid.style.top = top + 'mm';
+    cells.slice(i, i + per).forEach(id => {
+      const cell = document.createElement('div'); cell.className = 'cell';
+      if (id) { try { cell.append(makeLabel(id, h, m, showText)); } catch { bad.push(id); } }
+      grid.append(cell);
+    });
+    sheet.append(grid); $('sheets').append(sheet); pages++;
+  }
+  if (bad.length) showErr('Could not make a barcode for: ' + bad.join(', '));
+  $('summary').textContent = `${ids.length} label${ids.length > 1 ? 's' : ''} · ${pages} sheet${pages > 1 ? 's' : ''} of U4271`;
+}
+
+// remember paper settings on this computer
+const SETTINGS = ['paper', 'h', 'm', 'txt', 'dx', 'dy'];
+function saveSettings() { try { localStorage.setItem('labelSettings', JSON.stringify(Object.fromEntries(SETTINGS.map(k => [k, $(k).value])))); } catch {} }
+function loadSettings() { try { const o = JSON.parse(localStorage.getItem('labelSettings') || '{}'); SETTINGS.forEach(k => { if (o[k] != null) $(k).value = o[k]; }); } catch {} }
+function paperUI() { document.querySelectorAll('.u-only').forEach(el => el.hidden = $('paper').value !== 'u4271'); }
+SETTINGS.concat('skip').forEach(k => $(k).addEventListener(k === 'paper' || k === 'h' || k === 'm' || k === 'txt' ? 'change' : 'input', () => { paperUI(); saveSettings(); render(); }));
+loadSettings(); paperUI();
+
 $('ids').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(render, 300); });
-$('h').onchange = $('m').onchange = $('txt').onchange = render;
 $('print').onclick = () => window.print();
 
 // show IDs from the link straight away (before sign-in finishes)
