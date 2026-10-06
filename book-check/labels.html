@@ -4,35 +4,53 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Book Labels</title>
+<script src="https://accounts.google.com/gsi/client" async></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
 <style>
-  :root { --bg: #f5f5f1; --card: #fff; --ink: #1c2622; --muted: #75807a; --line: #e6e8e2; --accent: #1f4d3a; --accent-ink: #fff; }
+  :root { --bg: #f5f5f1; --card: #fff; --ink: #1c2622; --muted: #75807a; --line: #e6e8e2; --soft: #f0f1ed;
+    --accent: #1f4d3a; --accent-ink: #fff; --bad: #b8392e; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #121614; --card: #1b201d; --ink: #e8ece9; --muted: #8f9a94; --line: #2a302c; --accent: #a9d3b5; --accent-ink: #10231a; }
+    :root { --bg: #121614; --card: #1b201d; --ink: #e8ece9; --muted: #8f9a94; --line: #2a302c; --soft: #232925;
+      --accent: #a9d3b5; --accent-ink: #10231a; --bad: #f08a80; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   main { max-width: 860px; margin: 0 auto; padding: 24px 16px 40px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   h1 { font-size: 20px; margin: 0 0 4px; }
   .muted { color: var(--muted); font-size: 13px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin: 16px 0; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .card > strong { display: block; margin-bottom: 10px; }
+  label.small { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   input, select, textarea { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-  textarea { min-height: 120px; font: 13px ui-monospace, Menlo, monospace; resize: vertical; }
-  button { font: inherit; font-weight: 600; border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; background: var(--card); color: var(--ink); cursor: pointer; }
+  textarea { min-height: 90px; font: 13px ui-monospace, Menlo, monospace; resize: vertical; }
+  button { font: inherit; font-weight: 600; border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; background: var(--card); color: var(--ink); cursor: pointer; }
   button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-top: 12px; }
-  .row .grow { flex: 1; }
-  .err { color: #b8392e; font-size: 13px; }
+  button.link { border: 0; background: none; padding: 0; color: var(--muted); text-decoration: underline; font-weight: 500; font-size: 13px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .grow { flex: 1; min-width: 140px; }
+  .err { color: var(--bad); font-size: 13px; margin-top: 8px; }
+  #gbtn { min-height: 44px; }
 
-  /* ----- printable sheet: real millimetres ----- */
-  .sheet { background: #fff; color: #000; width: 210mm; min-height: 297mm; padding: 8mm; margin: 0 auto 16px;
-    box-shadow: 0 2px 12px #0002; display: flex; flex-wrap: wrap; align-content: flex-start; }
-  .label { display: flex; align-items: center; gap: 2mm; padding: 1mm 3mm; border: 0.2mm dashed #bbb; margin: 0 -0.2mm -0.2mm 0; }
-  .label svg { display: block; }
-  .label .id { font: 600 2.8mm/1 ui-monospace, Menlo, monospace; white-space: nowrap; }
+  /* book list */
+  .filters { display: grid; grid-template-columns: 1fr 140px; gap: 8px; margin-bottom: 8px; }
+  .list { max-height: 360px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .list label { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--line); cursor: pointer; font-size: 14px; }
+  .list label:first-child { border-top: 0; }
+  .list input { width: auto; margin: 0; accent-color: var(--accent); }
+  .list code { font: 12px ui-monospace, Menlo, monospace; color: var(--muted); min-width: 72px; }
+  .list .cls { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .list .empty { padding: 12px; color: var(--muted); font-size: 14px; }
+  details { margin-top: 12px; } summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  .sizes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+
+  /* printable sheet: real millimetres */
   .preview-wrap { overflow-x: auto; padding-bottom: 8px; }
+  .sheet { background: #fff; width: 210mm; min-height: 297mm; padding: 8mm; margin: 0 auto 16px;
+    box-shadow: 0 2px 12px #0002; display: flex; flex-wrap: wrap; align-content: flex-start; }
+  .label { display: flex; align-items: center; border: 0.2mm dashed #bbb; margin: 0 -0.2mm -0.2mm 0; }
+  .label svg { display: block; }
 
   @page { size: A4; margin: 0; }
   @media print {
@@ -46,61 +64,162 @@
 </head>
 <body>
 <main>
-  <h1>Book Labels</h1>
-  <div class="muted">Thin Code 128 labels for book spines. Prints on plain A4 — cut along the dashed lines.</div>
+  <header>
+    <div>
+      <h1>Book Labels</h1>
+      <div class="muted">Thin Code 128 labels for book spines. Plain A4 — cut along the dashed lines.</div>
+    </div>
+    <div class="muted" id="who" hidden><span id="email"></span> <button class="link" id="signout">Sign out</button></div>
+  </header>
 
   <div class="card">
-    <strong>1. BookIDs</strong>
-    <div class="muted" style="margin:4px 0 10px">Paste the BookID column from the Sheet (one per line), or generate a range.</div>
-    <div class="grid">
-      <div><label for="g-cls">Class</label><input id="g-cls" value="5a"></div>
-      <div><label for="g-yr">Year (2 digits)</label><input id="g-yr" value="26" inputmode="numeric"></div>
-      <div><label for="g-from">From</label><input id="g-from" value="1" inputmode="numeric"></div>
-      <div><label for="g-to">To</label><input id="g-to" value="32" inputmode="numeric"></div>
+    <strong>1. Choose books</strong>
+    <div id="signin">
+      <div class="muted" style="margin-bottom:10px">Sign in with your @sjps.edu.hk account to load the book list.</div>
+      <div id="gbtn"></div>
     </div>
-    <div class="row"><button id="gen">Generate range</button><span class="muted" id="gen-eg"></span></div>
-    <div style="margin-top:12px"><textarea id="ids" placeholder="5a260001&#10;5a260002&#10;…"></textarea></div>
+    <div id="picker" hidden>
+      <div class="filters">
+        <input id="q" placeholder="Search name or BookID" autocomplete="off">
+        <select id="fcls"><option value="">All classes</option></select>
+      </div>
+      <div class="list" id="list"><div class="empty">Loading…</div></div>
+      <div class="row" style="margin-top:8px">
+        <button id="all">Select shown</button><button id="none">Clear</button>
+        <span class="grow muted" id="selcount"></span>
+      </div>
+    </div>
+    <details id="manual-box">
+      <summary>Or type / paste BookIDs</summary>
+      <textarea id="ids" placeholder="5a260001&#10;5b260001&#10;…" style="margin-top:8px"></textarea>
+    </details>
+    <div class="err" id="err" hidden></div>
   </div>
 
   <div class="card">
-    <strong>2. Size</strong>
-    <div class="grid" style="margin-top:10px">
-      <div><label for="h">Barcode height</label>
+    <strong>2. Size &amp; print</strong>
+    <div class="sizes">
+      <div><label class="small" for="h">Barcode height</label>
         <select id="h"><option value="6">6 mm (thinnest)</option><option value="8" selected>8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option></select></div>
-      <div><label for="m">Bar width</label>
+      <div><label class="small" for="m">Bar width</label>
         <select id="m"><option value="0.25">Fine (0.25 mm)</option><option value="0.3" selected>Normal (0.3 mm)</option><option value="0.38">Bold (0.38 mm)</option></select></div>
     </div>
-    <div class="row"><span class="grow muted" id="summary"></span><button class="primary" id="print">Print</button></div>
-    <div class="err" id="err" hidden></div>
+    <div class="row" style="margin-top:12px"><span class="grow muted" id="summary"></span><button class="primary" id="print">Print</button></div>
+    <div class="muted" style="margin-top:6px">Print at 100% / Actual size (not “Fit to page”).</div>
   </div>
 
   <div id="sheets" class="preview-wrap"></div>
 </main>
 
 <script>
+const CONFIG = {
+  CLIENT_ID: '50487504605-rg8pk326ajj8d8j5lckfihn5n9gbevq4.apps.googleusercontent.com',
+  API_URL: 'https://script.google.com/macros/s/AKfycbyy87_E6TWyt_4S6tTo4ZGtqR62usHOXEL1eA_O7QLsqU9zqRzHP73OnVtFotP7vXp8RQ/exec',
+  DOMAIN: 'sjps.edu.hk',
+};
 const $ = id => document.getElementById(id);
-const pad = n => String(n).padStart(4, '0');
-
-function genRange() {
-  const cls = $('g-cls').value.trim().toLowerCase(), yr = $('g-yr').value.trim();
-  const from = parseInt($('g-from').value, 10), to = parseInt($('g-to').value, 10);
-  if (!cls || !/^\d{2}$/.test(yr) || !(from > 0) || !(to >= from) || to - from > 999) { showErr('Check the range: class, 2-digit year, From ≤ To.'); return; }
-  const out = [];
-  for (let i = from; i <= to; i++) out.push(cls + yr + pad(i));
-  $('ids').value = out.join('\n');
-  render();
-}
-
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
 function showErr(m) { $('err').hidden = !m; $('err').textContent = m || ''; }
 
-function readIds() {
-  const seen = new Set();
-  return $('ids').value.split(/[\s,]+/).map(s => s.trim().toLowerCase()).filter(s => s && !seen.has(s) && seen.add(s));
+/* ---------- selection ---------- */
+const selected = new Set();       // chosen from the book list
+let books = [];
+
+function manualIds() {
+  return $('ids').value.split(/[\s,]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+function allIds() {
+  const out = new Set();
+  books.forEach(b => { if (selected.has(b.id)) out.add(b.id); }); // keep sheet order
+  manualIds().forEach(id => out.add(id));
+  return [...out];
 }
 
+/* ---------- sign-in + API ---------- */
+let token = null;
+const jwt = t => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return null; } };
+const valid = t => { const p = t && jwt(t); return p && p.exp * 1000 > Date.now() + 60000 && p.hd === CONFIG.DOMAIN; };
+
+function signedIn(t) {
+  token = t; store.set('token', t);
+  $('email').textContent = jwt(t).email; $('who').hidden = false;
+  $('signin').hidden = true; $('picker').hidden = false;
+  loadBooks();
+}
+function signedOut(msg) {
+  token = null; store.del('token');
+  $('who').hidden = true; $('signin').hidden = false; $('picker').hidden = true;
+  showErr(msg);
+}
+function initGoogle() {
+  if (!window.google || !google.accounts) { setTimeout(initGoogle, 100); return; }
+  google.accounts.id.initialize({
+    client_id: CONFIG.CLIENT_ID, hd: CONFIG.DOMAIN, auto_select: true, use_fedcm_for_prompt: true,
+    callback: r => { const p = jwt(r.credential); p && p.hd === CONFIG.DOMAIN ? signedIn(r.credential) : signedOut('Please use your @' + CONFIG.DOMAIN + ' account.'); },
+  });
+  google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', width: 260 });
+  const saved = store.get('token');
+  if (valid(saved)) signedIn(saved); else google.accounts.id.prompt();
+}
+$('signout').onclick = () => { google.accounts.id.disableAutoSelect(); signedOut(); };
+
+async function api(action, data = {}) {
+  if (!valid(token)) { signedOut('Your sign-in expired. Please sign in again.'); throw new Error('auth'); }
+  const res = await fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ action, token }, data)) });
+  const out = await res.json();
+  if (out.auth === false) { signedOut(out.error); throw new Error('auth'); }
+  if (!out.ok) throw new Error(out.error || 'Something went wrong.');
+  return out;
+}
+
+async function loadBooks() {
+  try {
+    books = (await api('books')).books;
+    const classes = [...new Set(books.map(b => b.cls).filter(Boolean))].sort();
+    $('fcls').innerHTML = '<option value="">All classes</option>' + classes.map(c => `<option>${esc(c)}</option>`).join('');
+    // IDs passed in the link (e.g. from "Add book") start selected
+    const pre = new URLSearchParams(location.search).get('ids');
+    if (pre) {
+      pre.split(',').map(s => s.trim().toLowerCase()).forEach(id => { if (books.some(b => b.id === id)) selected.add(id); });
+      $('ids').value = $('ids').value.split(/[\s,]+/).filter(id => id && !selected.has(id.toLowerCase())).join('\n');
+    }
+    renderList(); render();
+  } catch (e) { if (e.message !== 'auth') { $('list').innerHTML = ''; showErr('Could not load the book list. ' + e.message); } }
+}
+
+function shown() {
+  const q = $('q').value.trim().toLowerCase(), c = $('fcls').value;
+  return books.filter(b => (!c || b.cls === c) && (!q || b.id.includes(q) || b.name.toLowerCase().includes(q)));
+}
+function renderList() {
+  const list = shown();
+  $('list').innerHTML = list.length
+    ? list.map(b => `<label><input type="checkbox" value="${esc(b.id)}"${selected.has(b.id) ? ' checked' : ''}><code>${esc(b.id)}</code><span>${esc(b.name)}</span><span class="cls">${esc(b.cls)}</span></label>`).join('')
+    : '<div class="empty">No books match.</div>';
+  $('selcount').textContent = selected.size ? selected.size + ' selected' : '';
+}
+$('list').onchange = e => {
+  if (e.target.type !== 'checkbox') return;
+  e.target.checked ? selected.add(e.target.value) : selected.delete(e.target.value);
+  $('selcount').textContent = selected.size ? selected.size + ' selected' : '';
+  render();
+};
+$('q').oninput = $('fcls').onchange = renderList;
+$('all').onclick = () => { shown().forEach(b => selected.add(b.id)); renderList(); render(); };
+$('none').onclick = () => { selected.clear(); renderList(); render(); };
+
+/* ---------- labels ---------- */
 function makeLabel(id, hMM, mMM) {
   const div = document.createElement('div');
   div.className = 'label';
+  const quiet = Math.max(2.5, 10 * mMM); // Code 128 needs ~10 bar-widths of white on each side
+  div.style.padding = `1mm ${quiet.toFixed(2)}mm`;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   JsBarcode(svg, id, { format: 'CODE128', width: 1, height: 10, margin: 0, displayValue: false, background: '#ffffff' });
   const modules = parseFloat(svg.getAttribute('width'));
@@ -108,61 +227,56 @@ function makeLabel(id, hMM, mMM) {
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.width = (modules * mMM).toFixed(2) + 'mm';
   svg.style.height = hMM + 'mm';
-  // quiet zone of 10 modules on the left; text sits on the right
-  svg.style.marginLeft = Math.max(0, 10 * mMM - 3).toFixed(2) + 'mm';
-  const t = document.createElement('span');
-  t.className = 'id'; t.textContent = id;
-  t.style.marginLeft = Math.max(2, 10 * mMM).toFixed(2) + 'mm';
-  div.append(svg, t);
+  div.append(svg);
   return div;
-}
-
-function render() {
-  showErr('');
-  const ids = readIds();
-  const h = parseFloat($('h').value), m = parseFloat($('m').value);
-  const box = $('sheets');
-  box.innerHTML = '';
-  if (!ids.length) { $('summary').textContent = 'No labels yet.'; return; }
-
-  // lay labels onto A4 sheets (190 mm × 281 mm usable)
-  let sheet = null, perSheet = 0;
-  const newSheet = () => { sheet = document.createElement('div'); sheet.className = 'sheet'; box.append(sheet); };
-  newSheet();
-  ids.forEach(id => {
-    try { sheet.append(makeLabel(id, h, m)); }
-    catch { showErr('Could not make a barcode for: ' + id); }
-  });
-  // split overflow onto extra pages
-  let labels = [...sheet.children];
-  let pages = 1;
-  while (labels.length) {
-    const overflow = labels.filter(l => l.getBoundingClientRect().bottom > sheet.getBoundingClientRect().top + mmToPx(8 + 281));
-    if (!overflow.length) break;
-    if (!perSheet) perSheet = labels.length - overflow.length;
-    newSheet(); pages++;
-    overflow.forEach(l => sheet.append(l));
-    labels = overflow;
-  }
-  $('summary').textContent = `${ids.length} labels · ${pages} page${pages > 1 ? 's' : ''}${perSheet ? ' · ' + perSheet + ' per page' : ''}`;
 }
 
 function mmToPx(mm) {
   const d = document.createElement('div');
-  d.style.width = mm + 'mm'; d.style.position = 'absolute'; d.style.visibility = 'hidden';
+  d.style.cssText = `width:${mm}mm;position:absolute;visibility:hidden`;
   document.body.append(d);
   const px = d.getBoundingClientRect().width; d.remove();
   return px;
 }
 
-const updateEg = () => { $('gen-eg').textContent = 'e.g. ' + $('g-cls').value.trim().toLowerCase() + $('g-yr').value.trim() + pad(parseInt($('g-from').value, 10) || 1); };
-['g-cls', 'g-yr', 'g-from'].forEach(id => $(id).addEventListener('input', updateEg));
-$('gen').onclick = genRange;
+function render() {
+  const ids = allIds();
+  const h = parseFloat($('h').value), m = parseFloat($('m').value);
+  const box = $('sheets');
+  box.innerHTML = '';
+  if (!ids.length) { $('summary').textContent = 'No labels selected yet.'; return; }
+
+  let sheet;
+  const newSheet = () => { sheet = document.createElement('div'); sheet.className = 'sheet'; box.append(sheet); };
+  newSheet();
+  const bad = [];
+  ids.forEach(id => { try { sheet.append(makeLabel(id, h, m)); } catch { bad.push(id); } });
+  if (bad.length) showErr('Could not make a barcode for: ' + bad.join(', '));
+
+  // move labels that run past the A4 printable area onto new sheets
+  const limit = mmToPx(8 + 281);
+  let pages = 1, perPage = 0, labels = [...sheet.children];
+  for (;;) {
+    const top = sheet.getBoundingClientRect().top;
+    const overflow = labels.filter(l => l.getBoundingClientRect().bottom - top > limit);
+    if (!overflow.length) break;
+    if (!perPage) perPage = labels.length - overflow.length;
+    newSheet(); pages++;
+    overflow.forEach(l => sheet.append(l));
+    labels = overflow;
+  }
+  $('summary').textContent = `${ids.length} label${ids.length > 1 ? 's' : ''} · ${pages} page${pages > 1 ? 's' : ''}${perPage ? ' · ' + perPage + ' per page' : ''}`;
+}
+
 $('ids').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(render, 300); });
 $('h').onchange = $('m').onchange = render;
 $('print').onclick = () => window.print();
-updateEg();
-genRange();
+
+// show IDs from the link straight away (before sign-in finishes)
+const pre = new URLSearchParams(location.search).get('ids');
+if (pre) { $('ids').value = pre.split(',').join('\n'); $('manual-box').open = true; }
+render();
+initGoogle();
 </script>
 </body>
 </html>

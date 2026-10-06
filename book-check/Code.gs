@@ -48,6 +48,81 @@ function setupSheet() {
   }
 }
 
+/* ---------- Sheet menu: Add book ---------- */
+
+const LABELS_URL = 'https://ewong1237.github.io/school-tools/book-check/labels.html';
+const CLASS_LETTERS = ['a', 'b', 'c', 'd', 'e'];
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('Book Check')
+    .addItem('Add book…', 'showAddBook')
+    .addToUi();
+}
+
+function showAddBook() {
+  const t = HtmlService.createTemplateFromFile('AddBook');
+  t.thisYear = Number(Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy'));
+  t.letters = CLASS_LETTERS;
+  t.labelsUrl = LABELS_URL;
+  SpreadsheetApp.getUi().showSidebar(t.evaluate().setTitle('Add book'));
+}
+
+// Next 4-digit number for a level + purchase year, e.g. level 5, year 2026 -> 2 if 5x260001 exists.
+function nextNumber_(level, year) {
+  const yy = String(year).slice(-2);
+  const re = new RegExp('^' + level + '[a-z]' + yy + '(\\d{4})$');
+  const d = readBooks_();
+  let max = 0;
+  d.values.slice(1).forEach(r => {
+    const m = norm_(r[d.idx[COL.ID]]).match(re);
+    if (m) max = Math.max(max, Number(m[1]));
+  });
+  return max + 1;
+}
+
+function makeIds_(level, year, letters, num) {
+  const yy = String(year).slice(-2), n = String(num).padStart(4, '0');
+  return letters.map(l => level + l + yy + n);
+}
+
+function previewIds(level, year, letters) {
+  if (!letters || !letters.length) return [];
+  return makeIds_(level, year, letters, nextNumber_(level, year));
+}
+
+function addBook(form) {
+  const name = String(form.name || '').trim();
+  const level = String(form.level);
+  const year = Number(form.year);
+  const letters = (form.letters || []).filter(l => CLASS_LETTERS.indexOf(l) >= 0);
+  if (!name) throw new Error('Please enter the book name.');
+  if (!/^[1-6]$/.test(level)) throw new Error('Please choose a level.');
+  if (!(year >= 2000 && year <= 2099)) throw new Error('Please check the year.');
+  if (!letters.length) throw new Error('Please choose at least one class.');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ids = makeIds_(level, year, letters, nextNumber_(level, year));
+    const d = readBooks_();
+    const width = d.values[0].length;
+    const rows = ids.map((id, i) => {
+      const row = new Array(width).fill('');
+      row[d.idx[COL.ID]] = id;
+      if (d.idx[COL.NAME] >= 0) row[d.idx[COL.NAME]] = name;
+      if (d.idx[COL.YEAR] >= 0) row[d.idx[COL.YEAR]] = year;
+      row[d.idx[COL.CLASS]] = (level + letters[i]).toUpperCase();
+      if (d.idx[COL.COND] >= 0) row[d.idx[COL.COND]] = form.condition || 'Good';
+      return row;
+    });
+    const start = d.sh.getLastRow() + 1;
+    d.sh.getRange(start, 1, rows.length, width).setValues(rows);
+    return ids;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /* ---------- Web API ---------- */
 
 function doGet() {
@@ -62,6 +137,7 @@ function doPost(e) {
       case 'classes': return json_({ ok: true, email, year: schoolYear_(), classes: listClasses_() });
       case 'status':  return json_({ ok: true, status: classStatus_(req.cls) });
       case 'scan':    return json_(Object.assign({ ok: true }, scan_(req.cls, req.id, email)));
+      case 'books':   return json_({ ok: true, books: listBooks_() });
       default:        return json_({ ok: false, error: 'Unknown action' });
     }
   } catch (err) {
@@ -134,6 +210,17 @@ function listClasses_() {
     if (c && norm_(r[d.idx[COL.ID]])) set[c] = true;
   });
   return Object.keys(set).sort();
+}
+
+function listBooks_() {
+  const d = readBooks_();
+  return d.values.slice(1).filter(r => norm_(r[d.idx[COL.ID]])).map(r => ({
+    id: norm_(r[d.idx[COL.ID]]),
+    name: d.idx[COL.NAME] >= 0 ? String(r[d.idx[COL.NAME]]) : '',
+    cls: String(r[d.idx[COL.CLASS]]).trim().toUpperCase(),
+    year: d.idx[COL.YEAR] >= 0 ? String(r[d.idx[COL.YEAR]]) : '',
+    condition: d.idx[COL.COND] >= 0 ? String(r[d.idx[COL.COND]]) : '',
+  }));
 }
 
 function classStatus_(cls, d) {

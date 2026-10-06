@@ -6,9 +6,13 @@ Use your **@sjps.edu.hk** account for steps 1–3.
 
 1. Create a new Google Sheet (e.g. "Book Check").
 2. **Extensions › Apps Script**. Replace the contents of `Code.gs` with `Code.gs` from this folder. Save.
-3. In the function dropdown at the top, choose **setupSheet** and click **Run**. Allow the permissions.
+3. Click **＋ › HTML**, name it `AddBook`, and paste `AddBook.html` from this folder. Save.
+4. In the function dropdown at the top, choose **setupSheet** and click **Run**. Allow the permissions.
    This creates the `Books` tab (with 3 sample rows, Condition dropdown and the `2026-27` column) and the `ScanLog` tab.
-4. Delete the sample rows and enter your books. Keep BookIDs lowercase, e.g. `5a260001`.
+5. Reload the Sheet. A **Book Check** menu appears: **Book Check › Add book…** opens a sidebar.
+   Enter the book name, pick a level and classes, and it creates one row per class with the next number,
+   e.g. `5a260002, 5b260002, 5c260002, 5d260002, 5e260002`, plus a link to print their labels.
+6. Delete the sample rows. Keep BookIDs lowercase.
 
 ## 2. Google sign-in (OAuth Client ID)
 
@@ -40,6 +44,8 @@ Use your **@sjps.edu.hk** account for steps 1–3.
    Tip: in Safari, **Share › Add to Home Screen** for one-tap access.
 
 ## Barcode labels
+
+Print labels at `labels.html`: sign in, tick books from the list (or paste IDs), print on A4 at 100%.
 
 The scanner reads **Code 128** (recommended), Code 39 and QR codes. It deliberately ignores ISBN/EAN barcodes, so a book's own barcode won't be picked up by mistake.
 

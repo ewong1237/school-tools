@@ -144,9 +144,9 @@ const CONFIG = {
 
 const $ = id => document.getElementById(id);
 const store = {
-  get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
-  set(k, v) { try { sessionStorage.setItem(k, v); } catch {} },
-  del(k) { try { sessionStorage.removeItem(k); } catch {} },
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
   getLocal(k) { try { return localStorage.getItem(k); } catch { return null; } },
   setLocal(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };

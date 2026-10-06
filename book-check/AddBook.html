@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+<base target="_top">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1c2622; background: #fff; }
+  label { display: block; font-size: 12px; color: #75807a; margin: 14px 0 4px; }
+  input[type=text], input[type=number], select { width: 100%; font: inherit; padding: 9px 10px; border: 1px solid #dfe3dc; border-radius: 8px; background: #fafaf8; color: inherit; }
+  .levels, .classes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { position: relative; }
+  .chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .chip span { display: block; min-width: 38px; text-align: center; padding: 7px 10px; border: 1px solid #dfe3dc; border-radius: 8px; font-weight: 600; }
+  .chip input:checked + span { background: #1f4d3a; border-color: #1f4d3a; color: #fff; }
+  .chip input:focus-visible + span { outline: 2px solid #8fb39c; outline-offset: 2px; }
+  .preview { margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: #f2f4ef; font-size: 13px; }
+  .preview code { font: 12px ui-monospace, Menlo, monospace; }
+  button { width: 100%; margin-top: 16px; padding: 11px; font: inherit; font-weight: 600; border: 0; border-radius: 8px; background: #1f4d3a; color: #fff; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .msg { margin-top: 14px; font-size: 13px; }
+  .ok { color: #2f8a55; } .err { color: #b8392e; }
+  .msg a { display: inline-block; margin-top: 8px; color: #1f4d3a; font-weight: 600; }
+</style>
+</head>
+<body>
+  <form id="f" autocomplete="off">
+    <label for="name">Book name</label>
+    <input type="text" id="name" required>
+
+    <label>Level</label>
+    <div class="levels">
+      <? for (var i = 1; i <= 6; i++) { ?>
+        <label class="chip" style="margin:0"><input type="radio" name="level" value="<?= i ?>" <?= i === 5 ? 'checked' : '' ?>><span>P<?= i ?></span></label>
+      <? } ?>
+    </div>
+
+    <label>Classes</label>
+    <div class="classes">
+      <? letters.forEach(function (l) { ?>
+        <label class="chip" style="margin:0"><input type="checkbox" name="letters" value="<?= l ?>" checked><span><?= l.toUpperCase() ?></span></label>
+      <? }); ?>
+    </div>
+
+    <label for="year">Year of purchase</label>
+    <input type="number" id="year" value="<?= thisYear ?>" min="2000" max="2099">
+
+    <label for="condition">Condition</label>
+    <select id="condition"><option>Good</option><option>Fair</option><option>Damaged</option></select>
+
+    <div class="preview" id="preview">…</div>
+    <button id="add" type="submit">Add book</button>
+    <div class="msg" id="msg"></div>
+  </form>
+
+<script>
+  const LABELS_URL = <?= labelsUrl ?>;
+  const $ = id => document.getElementById(id);
+  const val = () => ({
+    name: $('name').value,
+    level: (document.querySelector('[name=level]:checked') || {}).value,
+    letters: [...document.querySelectorAll('[name=letters]:checked')].map(x => x.value),
+    year: $('year').value,
+    condition: $('condition').value,
+  });
+
+  let seq = 0;
+  function preview() {
+    const v = val(), my = ++seq;
+    if (!v.letters.length) { $('preview').textContent = 'Choose at least one class.'; return; }
+    $('preview').textContent = 'Checking next number…';
+    google.script.run.withSuccessHandler(ids => {
+      if (my !== seq) return;
+      $('preview').innerHTML = `Will create <b>${ids.length}</b> ${ids.length > 1 ? 'copies' : 'copy'}:<br><code>${ids.join(', ')}</code>`;
+    }).withFailureHandler(e => { $('preview').textContent = e.message; }).previewIds(v.level, v.year, v.letters);
+  }
+  document.querySelectorAll('[name=level],[name=letters]').forEach(x => x.onchange = preview);
+  $('year').oninput = preview;
+
+  $('f').onsubmit = e => {
+    e.preventDefault();
+    $('add').disabled = true; $('msg').className = 'msg'; $('msg').textContent = 'Adding…';
+    google.script.run
+      .withSuccessHandler(ids => {
+        $('msg').className = 'msg ok';
+        $('msg').innerHTML = `✓ Added ${ids.length} rows: <code>${ids.join(', ')}</code><br>` +
+          `<a href="${LABELS_URL}?ids=${ids.join(',')}" target="_blank">Print these labels ↗</a>`;
+        $('name').value = ''; $('name').focus();
+        $('add').disabled = false;
+        preview();
+      })
+      .withFailureHandler(err => { $('msg').className = 'msg err'; $('msg').textContent = err.message; $('add').disabled = false; })
+      .addBook(val());
+  };
+  preview();
+</script>
+</body>
+</html>
