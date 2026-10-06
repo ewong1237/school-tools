@@ -7,7 +7,7 @@
  */
 
 const CONFIG = {
-  CLIENT_ID: 'PASTE_YOUR_CLIENT_ID.apps.googleusercontent.com',
+  CLIENT_ID: '50487504605-rg8pk326ajj8d8j5lckfihn5n9gbevq4.apps.googleusercontent.com',
   DOMAIN: 'sjps.edu.hk',
   BOOKS_SHEET: 'Books',
   LOG_SHEET: 'ScanLog',
