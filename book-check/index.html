@@ -51,11 +51,10 @@
   .count span { color: var(--muted); font-size: 18px; }
   .bar { height: 8px; border-radius: 8px; background: var(--plain-bg); overflow: hidden; }
   .bar i { display: block; height: 100%; width: 0; background: var(--ok); border-radius: 8px; transition: width .3s; }
-  .meta { font-size: 13px; color: var(--muted); margin-top: 8px; }
-  .meta { display: flex; justify-content: space-between; gap: 8px; }
+  .meta { font-size: 13px; color: var(--muted); margin-top: 8px; text-align: right; min-height: 18px; }
   .sync { font-weight: 600; }
   .sync.saved { color: var(--ok); } .sync.saving { color: var(--muted); } .sync.stuck { color: var(--warn); }
-  .listinfo { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .listinfo { text-align: right; font-size: 12px; margin-top: 8px; }
   .link { border: 0; background: none; padding: 0; font: inherit; color: var(--muted); text-decoration: underline; cursor: pointer; }
   .reauth { background: var(--warn-bg); border-color: transparent; font-size: 14px; display: grid; gap: 10px; }
   .done { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--ok-bg); color: var(--ok); font-weight: 600; }
@@ -64,7 +63,15 @@
   .viewport { position: relative; border-radius: 12px; overflow: hidden; background: #000; margin-bottom: 12px; }
   #reader video { display: block; width: 100%; }
   .flash { position: absolute; inset: 0; pointer-events: none; border: 4px solid transparent; border-radius: 12px; transition: border-color .15s; }
-  .flash.ok { border-color: var(--ok); } .flash.warn { border-color: var(--warn); } .flash.bad { border-color: var(--bad); }
+  .flash.ok { border-color: var(--ok); } .flash.warn { border-color: var(--warn); } .flash.bad { border-color: var(--bad); } .flash.dup { border-color: #9aa39e; }
+  .toast { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.96); max-width: 86%;
+    padding: 12px 18px; border-radius: 14px; color: #fff; font-weight: 700; font-size: 18px; line-height: 1.25; text-align: center;
+    box-shadow: 0 6px 24px #0006; opacity: 0; pointer-events: none; transition: opacity .12s, transform .12s; }
+  .toast small { display: block; font-weight: 500; font-size: 13px; opacity: .9; margin-top: 2px; }
+  .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .toast.ok { background: #2f8a55; } .toast.warn { background: #c27c12; } .toast.bad { background: #b8392e; } .toast.dup { background: #5d6762; }
+  .result.dup .t { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { .toast, .flash { transition: none; } }
 
   /* last result */
   .result { border-radius: 12px; padding: 12px 14px; background: var(--plain-bg); margin-top: 12px; }
@@ -84,6 +91,8 @@
   li { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
   li:first-child { border-top: 0; }
   li code { font: 13px ui-monospace, Menlo, monospace; color: var(--muted); min-width: 76px; }
+  li .tick { margin-left: auto; width: 18px; text-align: center; }
+  li.got { color: var(--ok); } li.got code { color: var(--ok); }
   .empty { font-size: 14px; color: var(--muted); }
 
   .center { text-align: center; padding: 28px 16px; }
@@ -118,18 +127,18 @@
     <div class="card">
       <label class="small" for="cls">Class</label>
       <select id="cls"><option value="">Loading…</option></select>
-      <div class="listinfo"><span id="listinfo"></span><button class="link" id="reload" type="button">Reload list</button></div>
+      <div class="listinfo"><button class="link" id="reload" type="button">Reload list</button></div>
     </div>
 
     <div class="card" id="progress" hidden>
       <div class="count"><b id="found">0</b><span>/ <span id="total">0</span> found</span></div>
       <div class="bar"><i id="barfill"></i></div>
-      <div class="meta"><span id="meta"></span><span class="sync" id="sync"></span></div>
+      <div class="meta"><span class="sync" id="sync"></span></div>
       <div class="done" id="done" hidden>✓ All books found</div>
     </div>
 
     <div class="card" id="scanbox" hidden>
-      <div class="viewport" id="viewport" hidden><div id="reader"></div><div class="flash" id="flash"></div></div>
+      <div class="viewport" id="viewport" hidden><div id="reader"></div><div class="flash" id="flash"></div><div class="toast" id="toast" role="status" aria-live="polite"></div></div>
       <button class="primary" id="toggle">Start scanning</button>
       <div class="result" id="result" hidden><div class="t" id="rt"></div><div class="s" id="rs"></div></div>
       <form class="manual" id="manual" autocomplete="off">
@@ -138,9 +147,9 @@
       </form>
     </div>
 
-    <div class="card" id="missingbox" hidden>
-      <h2>Missing <span id="mcount"></span></h2>
-      <ul id="missing"></ul>
+    <div class="card" id="listbox" hidden>
+      <h2>Book list</h2>
+      <ul id="booklist"></ul>
     </div>
     <div class="err" id="app-err" hidden></div>
   </section>
@@ -249,18 +258,19 @@ function useData(out, loadedAt) {
   const last = currentCls || store.getLocal('cls');
   $('cls').innerHTML = '<option value="">Choose a class</option>' +
     data.classes.map(c => `<option${c === last ? ' selected' : ''}>${esc(c)}</option>`).join('');
-  $('listinfo').textContent = `${books.size} books · loaded ${new Date(loadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   selectClass(last && data.classes.includes(last) ? last : '');
 }
 
 async function loadList() {
-  $('listinfo').textContent = 'Loading book list…';
+  $('reload').textContent = 'Loading…';
   try {
     const out = await api('init');
     store.setLocal('bookData', JSON.stringify({ out, at: Date.now() }));
     useData(out, Date.now());
     appError();
+    $('reload').textContent = 'Reload list';
   } catch (e) {
+    $('reload').textContent = 'Reload list';
     if (e.message === 'auth') return;
     let cached = null;
     try { cached = JSON.parse(store.getLocal('bookData') || 'null'); } catch {}
@@ -284,7 +294,7 @@ function selectClass(cls) {
   store.setLocal('cls', cls);
   $('result').hidden = true;
   const show = !!cls;
-  $('progress').hidden = $('scanbox').hidden = $('missingbox').hidden = !show;
+  $('progress').hidden = $('scanbox').hidden = $('listbox').hidden = !show;
   if (!show) { stopCamera(); return; }
   draw();
 }
@@ -297,12 +307,10 @@ function draw() {
   $('found').textContent = found;
   $('total').textContent = list.length;
   $('barfill').style.width = list.length ? (found / list.length * 100) + '%' : '0';
-  $('meta').textContent = `${data.year} · ${missing.length} missing`;
   $('done').hidden = !(list.length > 0 && missing.length === 0);
-  $('mcount').textContent = missing.length ? '· ' + missing.length : '';
-  $('missing').innerHTML = missing.length
-    ? missing.map(([id, b]) => `<li><code>${esc(id)}</code><span>${esc(b.name)}</span></li>`).join('')
-    : '<li class="empty">Nothing missing.</li>';
+  $('booklist').innerHTML = list.length
+    ? list.map(([id, b]) => `<li${b.found ? ' class="got"' : ''}><code>${esc(id)}</code><span>${esc(b.name)}</span><span class="tick">${b.found ? '✓' : ''}</span></li>`).join('')
+    : '<li class="empty">No books in this class.</li>';
   drawSync();
 }
 
@@ -310,7 +318,7 @@ function draw() {
 let audio;
 function beep(kind) {
   if (!audio) return;
-  const tones = { ok: [880], warn: [520, 520], bad: [220] }[kind];
+  const tones = { ok: [880], warn: [520, 520], bad: [220], dup: [640] }[kind];
   if (!tones) return;
   tones.forEach((f, i) => {
     const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + i * 0.16;
@@ -322,14 +330,18 @@ function beep(kind) {
   if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 60 : [60, 60, 60]);
 }
 
+const FEEDBACK_MS = 500; // how long the message stays on the camera view
 let flashTimer;
-function showResult(kind, title, sub) {
+function showResult(kind, title, sub, toast) {
   $('result').className = 'result ' + kind;
   $('rt').textContent = title; $('rs').textContent = sub || '';
   $('result').hidden = false;
   $('flash').className = 'flash ' + kind;
+  const t = $('toast');
+  t.className = 'toast show ' + kind;
+  t.innerHTML = esc(toast ? toast[0] : title) + (toast && toast[1] ? `<small>${esc(toast[1])}</small>` : '');
   clearTimeout(flashTimer);
-  flashTimer = setTimeout(() => { $('flash').className = 'flash'; }, 700);
+  flashTimer = setTimeout(() => { $('flash').className = 'flash'; t.className = 'toast ' + kind; }, FEEDBACK_MS);
   beep(kind);
 }
 
@@ -344,12 +356,15 @@ function onCode(raw) {
   recent.set(code, now);
 
   const b = data.books.get(code);
-  if (!b) { showResult('bad', 'Not in the book list', code + ' — if it was just added, tap “Reload list”.'); return; }
-  if (b.found) { showResult('warn', 'Already checked', `${code} · ${b.name}`); return; }
+  if (!b) { showResult('bad', 'Not in the book list', code + ' — if it was just added, tap “Reload list”.', ['✗ Not in list', code]); return; }
+  if (b.cls !== currentCls) {   // only books of the chosen class are recorded
+    showResult('warn', `Wrong class — this book belongs to ${b.cls}`, `${code} · ${b.name} — not recorded`, ['Wrong class', 'Belongs to ' + b.cls]);
+    return;
+  }
+  if (b.found) { showResult('dup', 'Already checked', `${code} · ${b.name}`, ['Already checked', b.name]); return; }
   b.found = true;
   addToOutbox({ id: code, cls: currentCls, t: now });
-  if (b.cls === currentCls) showResult('ok', '✓ ' + (b.name || code), code);
-  else showResult('warn', `Belongs to ${b.cls}`, `${code} · ${b.name} — recorded as found`);
+  showResult('ok', '✓ ' + (b.name || code), code, ['✓ ' + (b.name || code)]);
   draw();
 }
 

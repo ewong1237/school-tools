@@ -255,14 +255,16 @@ function sync_(scans, email) {
       if (!id || i == null) {
         result = 'unknown';
       } else {
-        if (yc < 0) yc = ensureYearCol_(d);
         const r = d.values[i];
-        if (isFound_(r, yc)) {
+        if (yc < 0 && norm_(r[d.idx[COL.CLASS]]) === norm_(cls)) yc = ensureYearCol_(d);
+        if (norm_(r[d.idx[COL.CLASS]]) !== norm_(cls)) {
+          result = 'other_class';            // wrong class: not recorded
+        } else if (isFound_(r, yc)) {
           result = 'duplicate';
         } else {
           d.sh.getRange(i + 1, yc + 1).setValue(when).setNumberFormat('dd/mm hh:mm');
           r[yc] = when;
-          result = norm_(r[d.idx[COL.CLASS]]) === norm_(cls) ? 'ok' : 'other_class';
+          result = 'ok';
         }
       }
       results.push({ id, result });
