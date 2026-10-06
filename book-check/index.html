@@ -52,6 +52,12 @@
   .bar { height: 8px; border-radius: 8px; background: var(--plain-bg); overflow: hidden; }
   .bar i { display: block; height: 100%; width: 0; background: var(--ok); border-radius: 8px; transition: width .3s; }
   .meta { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .meta { display: flex; justify-content: space-between; gap: 8px; }
+  .sync { font-weight: 600; }
+  .sync.saved { color: var(--ok); } .sync.saving { color: var(--muted); } .sync.stuck { color: var(--warn); }
+  .listinfo { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .link { border: 0; background: none; padding: 0; font: inherit; color: var(--muted); text-decoration: underline; cursor: pointer; }
+  .reauth { background: var(--warn-bg); border-color: transparent; font-size: 14px; display: grid; gap: 10px; }
   .done { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--ok-bg); color: var(--ok); font-weight: 600; }
 
   /* scanner */
@@ -104,15 +110,21 @@
 
   <!-- App -->
   <section id="app" hidden>
+    <div class="card reauth" id="reauth" hidden>
+      <div><b>Sign-in expired.</b> Your scans are kept on this phone — sign in to save them.</div>
+      <div id="gbtn2"></div>
+    </div>
+
     <div class="card">
       <label class="small" for="cls">Class</label>
       <select id="cls"><option value="">Loading…</option></select>
+      <div class="listinfo"><span id="listinfo"></span><button class="link" id="reload" type="button">Reload list</button></div>
     </div>
 
     <div class="card" id="progress" hidden>
       <div class="count"><b id="found">0</b><span>/ <span id="total">0</span> found</span></div>
       <div class="bar"><i id="barfill"></i></div>
-      <div class="meta" id="meta"></div>
+      <div class="meta"><span id="meta"></span><span class="sync" id="sync"></span></div>
       <div class="done" id="done" hidden>✓ All books found</div>
     </div>
 
@@ -168,7 +180,8 @@ function onCredential(resp) {
   if (!p || p.hd !== CONFIG.DOMAIN) { showSignin('Please use your @' + CONFIG.DOMAIN + ' account.'); return; }
   token = resp.credential;
   store.set('token', token);
-  enterApp(p.email);
+  if (data) { $('reauth').hidden = true; flush(); }   // already working: just carry on saving
+  else enterApp(p.email);
 }
 
 function showSignin(msg) {
@@ -176,6 +189,14 @@ function showSignin(msg) {
   stopCamera();
   $('app').hidden = true; $('who').hidden = true; $('signin').hidden = false;
   $('signin-err').hidden = !msg; $('signin-err').textContent = msg || '';
+}
+
+// Sign-in ran out while working: keep scanning, ask to sign in again to save.
+function needSignin(msg) {
+  token = null; store.del('token');
+  if (!data) { showSignin(msg); return; }
+  $('reauth').hidden = false;
+  try { google.accounts.id.renderButton($('gbtn2'), { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', width: 240 }); google.accounts.id.prompt(); } catch {}
 }
 
 function initGoogle() {
@@ -191,89 +212,98 @@ function initGoogle() {
 }
 
 $('signout').onclick = () => {
+  if (outbox.length && !confirm(`${outbox.length} scan(s) are not saved yet. Sign out anyway? They stay on this phone and are saved next time.`)) return;
   if (window.google) google.accounts.id.disableAutoSelect();
+  data = null;
   showSignin();
 };
 
 /* ---------- API ---------- */
-async function api(action, data = {}) {
-  if (!tokenValid(token)) { showSignin('Your sign-in expired. Please sign in again.'); throw new Error('auth'); }
+async function api(action, body = {}) {
+  if (!tokenValid(token)) { needSignin('Your sign-in expired. Please sign in again.'); throw new Error('auth'); }
   const res = await fetch(CONFIG.API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight
-    body: JSON.stringify(Object.assign({ action, token }, data)),
+    body: JSON.stringify(Object.assign({ action, token }, body)),
   });
   const text = await res.text();
   let out;
   try { out = JSON.parse(text); }
   catch { throw new Error('Server said: ' + (new DOMParser().parseFromString(text, 'text/html').body.textContent || text).replace(/\s+/g, ' ').trim().slice(0, 200)); }
-  if (out.auth === false) { showSignin(out.error); throw new Error('auth'); }
+  if (out.auth === false) { needSignin(out.error); throw new Error('auth'); }
   if (!out.ok) throw new Error(out.error || 'Something went wrong.');
   return out;
 }
 
 function appError(msg) { $('app-err').hidden = !msg; $('app-err').textContent = msg || ''; }
 
-/* ---------- App ---------- */
+/* ---------- Book list: loaded once, then everything happens on the phone ---------- */
+let data = null;          // { year, classes, books: Map(id -> { name, cls, lost, found }), loadedAt }
 let currentCls = '';
 
-async function enterApp(email) {
+function useData(out, loadedAt) {
+  const books = new Map();
+  out.books.forEach(b => books.set(b.id, { name: b.name, cls: b.cls, lost: !!b.lost, found: !!b.found }));
+  data = { year: out.year, classes: out.classes, books, loadedAt };
+  outbox.forEach(sc => { const b = books.get(sc.id); if (b) b.found = true; }); // unsaved scans still count
+  const last = currentCls || store.getLocal('cls');
+  $('cls').innerHTML = '<option value="">Choose a class</option>' +
+    data.classes.map(c => `<option${c === last ? ' selected' : ''}>${esc(c)}</option>`).join('');
+  $('listinfo').textContent = `${books.size} books · loaded ${new Date(loadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  selectClass(last && data.classes.includes(last) ? last : '');
+}
+
+async function loadList() {
+  $('listinfo').textContent = 'Loading book list…';
+  try {
+    const out = await api('init');
+    store.setLocal('bookData', JSON.stringify({ out, at: Date.now() }));
+    useData(out, Date.now());
+    appError();
+  } catch (e) {
+    if (e.message === 'auth') return;
+    let cached = null;
+    try { cached = JSON.parse(store.getLocal('bookData') || 'null'); } catch {}
+    if (cached) { useData(cached.out, cached.at); appError('No connection — using the book list saved on this phone. Scans will be saved when the connection is back.'); }
+    else appError('Could not load the book list. ' + e.message);
+  }
+}
+
+function enterApp(email) {
   $('signin').hidden = true; $('app').hidden = false;
   $('email').textContent = email; $('who').hidden = false;
-  try {
-    const out = await api('classes');
-    const last = store.getLocal('cls');
-    $('cls').innerHTML = '<option value="">Choose a class</option>' +
-      out.classes.map(c => `<option${c === last ? ' selected' : ''}>${esc(c)}</option>`).join('');
-    if (last && out.classes.includes(last)) selectClass(last);
-  } catch (e) { if (e.message !== 'auth') appError('Could not load classes. ' + e.message); }
+  loadList();
+  flush();
 }
 
 $('cls').onchange = () => selectClass($('cls').value);
+$('reload').onclick = () => { flush(); loadList(); };
 
-async function selectClass(cls) {
+function selectClass(cls) {
   currentCls = cls;
-  local = null;
   store.setLocal('cls', cls);
   $('result').hidden = true;
   const show = !!cls;
   $('progress').hidden = $('scanbox').hidden = $('missingbox').hidden = !show;
   if (!show) { stopCamera(); return; }
-  $('progress').classList.add('loading');
-  try { applyStatus((await api('status', { cls })).status); appError(); }
-  catch (e) { if (e.message !== 'auth') appError('Could not load class. ' + e.message); }
-  finally { $('progress').classList.remove('loading'); }
-}
-
-/* The class book list is kept on the phone so a scan shows instantly;
-   the Sheet is updated in the background. */
-let local = null;            // { cls, year, total, books: Map(id -> { name, found }) }
-const pending = new Set();   // ids shown as found but not yet saved
-
-function applyStatus(s) {
-  if (s.cls !== currentCls.toUpperCase()) return; // teacher switched class meanwhile
-  const prev = local && local.cls === s.cls ? local.books : new Map();
-  const books = new Map();
-  prev.forEach((b, id) => { if (b.found) books.set(id, b); });  // keep names of books already found
-  (s.foundList || []).forEach(b => books.set(b.id, { name: b.name, found: true }));
-  s.missing.forEach(b => books.set(b.id, { name: b.name, found: pending.has(b.id) }));
-  local = { cls: s.cls, year: s.year, total: s.total, books };
   draw();
 }
 
 function draw() {
-  if (!local) return;
-  const missing = [...local.books].filter(([, b]) => !b.found).map(([id, b]) => ({ id, name: b.name }));
-  const found = local.total - missing.length;
+  if (!data || !currentCls) return;
+  const list = [...data.books].filter(([, b]) => b.cls === currentCls && !b.lost); // Lost books are not expected
+  const missing = list.filter(([, b]) => !b.found);
+  const found = list.length - missing.length;
   $('found').textContent = found;
-  $('total').textContent = local.total;
-  $('barfill').style.width = local.total ? (found / local.total * 100) + '%' : '0';
-  $('meta').textContent = `${local.year} · ${missing.length} missing` + (pending.size ? ` · saving ${pending.size}…` : '');
-  $('done').hidden = !(local.total > 0 && missing.length === 0);
+  $('total').textContent = list.length;
+  $('barfill').style.width = list.length ? (found / list.length * 100) + '%' : '0';
+  $('meta').textContent = `${data.year} · ${missing.length} missing`;
+  $('done').hidden = !(list.length > 0 && missing.length === 0);
   $('mcount').textContent = missing.length ? '· ' + missing.length : '';
   $('missing').innerHTML = missing.length
-    ? missing.map(b => `<li><code>${esc(b.id)}</code><span>${esc(b.name)}</span></li>`).join('')
+    ? missing.map(([id, b]) => `<li><code>${esc(id)}</code><span>${esc(b.name)}</span></li>`).join('')
     : '<li class="empty">Nothing missing.</li>';
+  drawSync();
 }
 
 /* ---------- Feedback (sound + colour; iPhone has no web vibration) ---------- */
@@ -303,59 +333,81 @@ function showResult(kind, title, sub) {
   beep(kind);
 }
 
-/* ---------- Scanning ---------- */
+/* ---------- Scanning (all on the phone) ---------- */
 const recent = new Map(); // code -> time, to ignore the same label held in view
-const queue = [];
-let working = false;
 
 function onCode(raw) {
   const code = String(raw).trim().toLowerCase();
-  if (!code || !currentCls) return;
+  if (!code || !currentCls || !data) return;
   const now = Date.now();
   if (now - (recent.get(code) || 0) < 4000) return;
   recent.set(code, now);
 
-  const b = local && local.cls === currentCls.toUpperCase() ? local.books.get(code) : null;
-  if (b && b.found) { showResult('warn', 'Already checked', `${code} · ${b.name}`); return; }
-  if (b) {
-    b.found = true; pending.add(code);
-    showResult('ok', '✓ ' + (b.name || code), code);
-    draw();
-    queue.push({ code, cls: currentCls, shown: true });
-  } else {
-    showResult('plain', 'Checking…', code); // not in this class: ask the Sheet
-    queue.push({ code, cls: currentCls, shown: false });
-  }
-  work();
-}
-
-async function work() {
-  if (working) return;
-  working = true;
-  while (queue.length) {
-    const item = queue.shift();
-    try {
-      const out = await api('scan', { cls: item.cls, id: item.code });
-      pending.delete(item.code);
-      const b = out.book;
-      if (out.result === 'other_class') showResult('warn', `Belongs to ${b.cls}`, `${b.id} · ${b.name} — recorded as found`);
-      else if (out.result === 'unknown') showResult('bad', 'Not in the book list', item.code);
-      else if (!item.shown) showResult(out.result === 'ok' ? 'ok' : 'warn', out.result === 'ok' ? '✓ ' + (b.name || b.id) : 'Already checked', `${b.id} · ${b.name}`);
-      applyStatus(out.status);
-      appError();
-    } catch (e) {
-      pending.delete(item.code);
-      if (e.message === 'auth') { queue.length = 0; pending.clear(); break; }
-      recent.delete(item.code);
-      const b = local && local.books.get(item.code);
-      if (b && item.shown) b.found = false;
-      draw();
-      showResult('bad', 'Not saved — please scan again', `${item.code}${b ? ' · ' + b.name : ''} (${e.message})`);
-    }
-  }
-  working = false;
+  const b = data.books.get(code);
+  if (!b) { showResult('bad', 'Not in the book list', code + ' — if it was just added, tap “Reload list”.'); return; }
+  if (b.found) { showResult('warn', 'Already checked', `${code} · ${b.name}`); return; }
+  b.found = true;
+  addToOutbox({ id: code, cls: currentCls, t: now });
+  if (b.cls === currentCls) showResult('ok', '✓ ' + (b.name || code), code);
+  else showResult('warn', `Belongs to ${b.cls}`, `${code} · ${b.name} — recorded as found`);
   draw();
 }
+
+/* ---------- Saving: outbox kept on the phone, sent to the Sheet in batches ---------- */
+let outbox = [];
+try { outbox = JSON.parse(localStorage.getItem('outbox') || '[]'); } catch {}
+const saveOutbox = () => { try { localStorage.setItem('outbox', JSON.stringify(outbox)); } catch {} };
+
+let flushTimer, sending = false, retryMs = 0;
+
+function addToOutbox(sc) {
+  outbox.push(sc); saveOutbox();
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(flush, 1500); // gather scans for a moment, then send together
+}
+
+async function flush() {
+  clearTimeout(flushTimer);
+  if (sending || !outbox.length) { drawSync(); return; }
+  sending = true; drawSync();
+  const batch = outbox.slice(0, 200);
+  try {
+    const out = await api('sync', { scans: batch });
+    outbox = outbox.filter(sc => !batch.includes(sc)); saveOutbox();
+    retryMs = 0;
+    if (data) {
+      const foundSet = new Set(out.foundIds);
+      data.books.forEach((b, id) => { if (foundSet.has(id)) b.found = true; }); // picks up other teachers' scans too
+    }
+    appError();
+  } catch (e) {
+    if (e.message !== 'auth') retryMs = Math.min(30000, (retryMs || 2000) * 2); // back off: 4s, 8s, 16s, 30s
+  } finally {
+    sending = false;
+    if (outbox.length && token && $('reauth').hidden) flushTimer = setTimeout(flush, retryMs || 300);
+    draw(); drawSync();
+  }
+}
+
+function drawSync() {
+  const el = $('sync');
+  if (!el) return;
+  if (!outbox.length) { el.className = 'sync saved'; el.textContent = '✓ All saved'; return; }
+  el.className = 'sync ' + (retryMs || !token ? 'stuck' : 'saving');
+  el.textContent = retryMs || !token ? `${outbox.length} not saved yet — retrying` : `Saving ${outbox.length}…`;
+}
+
+window.addEventListener('online', () => { retryMs = 0; flush(); });
+
+// Leaving the page: try to send what's left right away. If that fails it stays on the phone and is sent next time.
+function sendBeaconNow() {
+  if (!outbox.length || !tokenValid(token) || !navigator.sendBeacon) return;
+  try {
+    navigator.sendBeacon(CONFIG.API_URL, new Blob([JSON.stringify({ action: 'sync', token, scans: outbox.slice(0, 200) })], { type: 'text/plain;charset=utf-8' }));
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') sendBeaconNow(); else flush(); });
+window.addEventListener('beforeunload', e => { if (outbox.length) { sendBeaconNow(); e.preventDefault(); e.returnValue = ''; } });
 
 let scanner, running = false, wakeLock = null;
 

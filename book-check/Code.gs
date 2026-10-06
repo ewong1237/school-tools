@@ -134,10 +134,9 @@ function doPost(e) {
     const req = JSON.parse(e.postData.contents);
     const email = verifyToken_(req.token);
     switch (req.action) {
-      case 'classes': return json_({ ok: true, email, year: schoolYear_(), classes: listClasses_() });
-      case 'status':  return json_({ ok: true, status: classStatus_(req.cls) });
-      case 'scan':    return json_(Object.assign({ ok: true }, scan_(req.cls, req.id, email)));
-      case 'books':   return json_({ ok: true, books: listBooks_() });
+      case 'init':  return json_(Object.assign({ ok: true, email }, initData_()));
+      case 'sync':  return json_(Object.assign({ ok: true }, sync_(req.scans || [], email)));
+      case 'books': return json_({ ok: true, books: listBooks_() });
       default:        return json_({ ok: false, error: 'Unknown action' });
     }
   } catch (err) {
@@ -202,16 +201,6 @@ function ensureYearCol_(data) {
   return data.yearCol;
 }
 
-function listClasses_() {
-  const d = readBooks_();
-  const set = {};
-  d.values.slice(1).forEach(r => {
-    const c = String(r[d.idx[COL.CLASS]]).trim().toUpperCase();
-    if (c && norm_(r[d.idx[COL.ID]])) set[c] = true;
-  });
-  return Object.keys(set).sort();
-}
-
 function listBooks_() {
   const d = readBooks_();
   return d.values.slice(1).filter(r => norm_(r[d.idx[COL.ID]])).map(r => ({
@@ -223,60 +212,69 @@ function listBooks_() {
   }));
 }
 
-function classStatus_(cls, d) {
-  d = d || readBooks_();
-  const target = norm_(cls);
-  const books = [];
+const isFound_ = (r, yc) => yc >= 0 && r[yc] !== '' && r[yc] != null;
+
+// Everything the scan page needs, in one read.
+function initData_() {
+  const d = readBooks_();
+  const books = [], classes = {};
   d.values.slice(1).forEach(r => {
     const id = norm_(r[d.idx[COL.ID]]);
-    if (!id || norm_(r[d.idx[COL.CLASS]]) !== target) return;
-    if (d.idx[COL.COND] >= 0 && r[d.idx[COL.COND]] === 'Lost') return; // written-off books are not expected
+    if (!id) return;
+    const cls = String(r[d.idx[COL.CLASS]]).trim().toUpperCase();
+    if (cls) classes[cls] = true;
     books.push({
-      id,
+      id, cls,
       name: d.idx[COL.NAME] >= 0 ? String(r[d.idx[COL.NAME]]) : '',
-      found: d.yearCol >= 0 && r[d.yearCol] !== '' && r[d.yearCol] != null,
+      lost: d.idx[COL.COND] >= 0 && r[d.idx[COL.COND]] === 'Lost',
+      found: isFound_(r, d.yearCol),
     });
   });
-  const missing = books.filter(b => !b.found).map(b => ({ id: b.id, name: b.name }));
-  const foundList = books.filter(b => b.found).map(b => ({ id: b.id, name: b.name }));
-  return { cls: String(cls).toUpperCase(), year: d.year, total: books.length, found: foundList.length, missing, foundList };
+  return { year: d.year, classes: Object.keys(classes).sort(), books };
 }
 
-function scan_(cls, rawId, email) {
-  const id = norm_(rawId);
-  if (!id) throw new Error('Empty code.');
+// Save a batch of scans: [{ id, cls, t }]. Safe to send twice: already-found books are left alone.
+function sync_(scans, email) {
+  scans = scans.slice(0, 500);
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(20000);
   try {
     const d = readBooks_();
-    const rowIdx = d.values.findIndex((r, i) => i > 0 && norm_(r[d.idx[COL.ID]]) === id);
-    let result, book = null;
+    const rowOf = {};
+    d.values.forEach((r, i) => { if (i > 0) rowOf[norm_(r[d.idx[COL.ID]])] = i; });
+    const now = Date.now(), log = [], results = [];
+    let yc = d.yearCol;
 
-    if (rowIdx < 0) {
-      result = 'unknown';
-    } else {
-      const r = d.values[rowIdx];
-      book = {
-        id,
-        name: d.idx[COL.NAME] >= 0 ? String(r[d.idx[COL.NAME]]) : '',
-        cls: String(r[d.idx[COL.CLASS]]).trim().toUpperCase(),
-        condition: d.idx[COL.COND] >= 0 ? String(r[d.idx[COL.COND]]) : '',
-      };
-      const yc = ensureYearCol_(d);
-      const already = r[yc] !== '' && r[yc] != null;
-      if (!already) {
-        const now = new Date();
-        d.sh.getRange(rowIdx + 1, yc + 1).setValue(now).setNumberFormat('dd/mm hh:mm');
-        r[yc] = now;
+    scans.forEach(sc => {
+      const id = norm_(sc.id), cls = String(sc.cls || '').toUpperCase();
+      let t = Number(sc.t);
+      if (!(t > now - 30 * 864e5 && t < now + 5 * 6e4)) t = now; // ignore odd phone clocks
+      const when = new Date(t);
+      const i = rowOf[id];
+      let result;
+      if (!id || i == null) {
+        result = 'unknown';
+      } else {
+        if (yc < 0) yc = ensureYearCol_(d);
+        const r = d.values[i];
+        if (isFound_(r, yc)) {
+          result = 'duplicate';
+        } else {
+          d.sh.getRange(i + 1, yc + 1).setValue(when).setNumberFormat('dd/mm hh:mm');
+          r[yc] = when;
+          result = norm_(r[d.idx[COL.CLASS]]) === norm_(cls) ? 'ok' : 'other_class';
+        }
       }
-      if (norm_(book.cls) !== norm_(cls)) result = 'other_class';
-      else result = already ? 'duplicate' : 'ok';
+      results.push({ id, result });
+      log.push([when, id, cls, email, result]);
+    });
+
+    if (log.length) {
+      const lg = SpreadsheetApp.getActive().getSheetByName(CONFIG.LOG_SHEET);
+      lg.getRange(lg.getLastRow() + 1, 1, log.length, 5).setValues(log);
     }
-
-    SpreadsheetApp.getActive().getSheetByName(CONFIG.LOG_SHEET)
-      .appendRow([new Date(), id, String(cls).toUpperCase(), email, result]);
-
-    return { result, book, status: classStatus_(cls, d) };
+    const foundIds = d.values.slice(1).filter(r => isFound_(r, yc)).map(r => norm_(r[d.idx[COL.ID]]));
+    return { results, foundIds };
   } finally {
     lock.releaseLock();
   }
