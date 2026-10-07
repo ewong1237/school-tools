@@ -56,10 +56,11 @@
 
   /* Unistat U4271: 4 x 16 labels, 48.3 x 16.9 mm, no gaps (layout assumed centred on A4) */
   .sheet.u4271 { padding: 0; height: 297mm; overflow: hidden; position: relative; display: block; }
-  .u4271 .grid { position: absolute; display: grid; grid-template-columns: repeat(4, 48.3mm); grid-auto-rows: 16.9mm; }
+  .u4271 .grid { position: absolute; display: grid; }
   .u4271 .cell { display: flex; align-items: center; justify-content: center; }
   .u4271 .label { border: 0; margin: 0; }
   @media screen { .u4271 .cell { outline: 0.2mm solid #e3e3e3; outline-offset: -0.1mm; } }
+  .u4271.outlines .cell { outline: 0.2mm solid #999 !important; outline-offset: -0.1mm; }
 
   @page { size: A4; margin: 0; }
   @media print {
@@ -114,6 +115,12 @@
         <input id="skip" type="number" min="1" max="64" value="1" inputmode="numeric"></div>
       <div class="u-only"><label class="small" for="dx">Move right (mm)</label>
         <input id="dx" type="number" step="0.5" value="0" inputmode="decimal"></div>
+      <div class="u-only"><label class="small" for="py">Row spacing (mm)</label>
+        <input id="py" type="number" step="0.05" value="16.9" inputmode="decimal"></div>
+      <div class="u-only"><label class="small" for="px">Column spacing (mm)</label>
+        <input id="px" type="number" step="0.05" value="48.3" inputmode="decimal"></div>
+      <div class="u-only"><label class="small" for="outl">Test print</label>
+        <select id="outl"><option value="0" selected>Barcodes only</option><option value="1">Print label outlines</option></select></div>
       <div class="u-only"><label class="small" for="dy">Move down (mm)</label>
         <input id="dy" type="number" step="0.5" value="0" inputmode="decimal"></div>
       <div><label class="small" for="h">Barcode height</label>
@@ -125,7 +132,9 @@
     </div>
     <div class="row" style="margin-top:12px"><span class="grow muted" id="summary"></span><button class="primary" id="print">Print</button></div>
     <div class="muted" style="margin-top:6px">Print at 100% / Actual size (not “Fit to page”).
-      <span class="u-only">Tip: print on plain paper first, hold it over a label sheet against the light, then adjust “Move right / down” (negative = left / up).</span></div>
+      <span class="u-only">To line up: choose “Print label outlines”, print on plain paper, hold it over a label sheet against the light.
+        Top rows too low and bottom rows too high → increase Row spacing (e.g. 17.0, 17.1). Whole page shifted → Move right / down (negative = left / up).
+        Row spacing = distance from the top of row 1 to the top of row 16 on the label sheet, divided by 15.</span></div>
   </div>
 
   <div id="sheets" class="preview-wrap"></div>
@@ -303,14 +312,16 @@ function renderU4271(ids, h, m, showText) {
   const per = U.cols * U.rows;
   const skip = Math.min(per - 1, Math.max(0, (parseInt($('skip').value, 10) || 1) - 1));
   const dx = parseFloat($('dx').value) || 0, dy = parseFloat($('dy').value) || 0;
-  const left = (210 - U.cols * U.w) / 2 + dx, top = (297 - U.rows * U.h) / 2 + dy;
+  const py = Math.max(U.h, parseFloat($('py').value) || U.h), px = Math.max(U.w, parseFloat($('px').value) || U.w);
+  const left = (210 - (U.cols - 1) * px - U.w) / 2 + dx, top = (297 - (U.rows - 1) * py - U.h) / 2 + dy;
   const cells = Array(skip).fill(null).concat(ids);
   const bad = [];
   let pages = 0;
   for (let i = 0; i < cells.length; i += per) {
-    const sheet = document.createElement('div'); sheet.className = 'sheet u4271';
+    const sheet = document.createElement('div'); sheet.className = 'sheet u4271' + ($('outl').value === '1' ? ' outlines' : '');
     const grid = document.createElement('div'); grid.className = 'grid';
-    grid.style.left = left + 'mm'; grid.style.top = top + 'mm';
+    grid.style.cssText = `left:${left}mm;top:${top}mm;grid-template-columns:repeat(${U.cols},${U.w}mm);grid-auto-rows:${U.h}mm;` +
+      `column-gap:${(px - U.w).toFixed(2)}mm;row-gap:${(py - U.h).toFixed(2)}mm`;
     cells.slice(i, i + per).forEach(id => {
       const cell = document.createElement('div'); cell.className = 'cell';
       if (id) { try { cell.append(makeLabel(id, h, m, showText)); } catch { bad.push(id); } }
@@ -323,11 +334,11 @@ function renderU4271(ids, h, m, showText) {
 }
 
 // remember paper settings on this computer
-const SETTINGS = ['paper', 'h', 'm', 'txt', 'dx', 'dy'];
+const SETTINGS = ['paper', 'h', 'm', 'txt', 'dx', 'dy', 'py', 'px', 'outl'];
 function saveSettings() { try { localStorage.setItem('labelSettings', JSON.stringify(Object.fromEntries(SETTINGS.map(k => [k, $(k).value])))); } catch {} }
 function loadSettings() { try { const o = JSON.parse(localStorage.getItem('labelSettings') || '{}'); SETTINGS.forEach(k => { if (o[k] != null) $(k).value = o[k]; }); } catch {} }
 function paperUI() { document.querySelectorAll('.u-only').forEach(el => el.hidden = $('paper').value !== 'u4271'); }
-SETTINGS.concat('skip').forEach(k => $(k).addEventListener(k === 'paper' || k === 'h' || k === 'm' || k === 'txt' ? 'change' : 'input', () => { paperUI(); saveSettings(); render(); }));
+SETTINGS.concat('skip').forEach(k => $(k).addEventListener(['paper', 'h', 'm', 'txt', 'outl'].includes(k) ? 'change' : 'input', () => { paperUI(); saveSettings(); render(); }));
 loadSettings(); paperUI();
 
 $('ids').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(render, 300); });
