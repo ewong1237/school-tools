@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Super Search Practice</title>
+<style>
+:root {
+  --ink: #202124; --muted: #5f6368; --line: #dadce0; --link: #1a0dab;
+  --brand: #6d28d9; --navy: #1f2a44; --sun: #ffd23f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--ink); background: #e8ecf3; -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+button { font: inherit; cursor: pointer; color: inherit; }
+[hidden] { display: none !important; }
+
+/* ---------- Join + intro ---------- */
+.screen {
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px; background: linear-gradient(160deg, #fff4dc, #e3edff);
+}
+.card {
+  width: 100%; max-width: 620px; background: #fff; border-radius: 28px;
+  padding: 28px 24px 32px; box-shadow: 0 10px 40px rgba(31,42,68,.12); text-align: center;
+}
+.card h2 { font-size: 20px; margin: 26px 0 12px; color: var(--navy); }
+.sub { margin: 6px 0 0; color: var(--muted); font-size: 18px; }
+.clsrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.chip {
+  min-width: 76px; height: 60px; border-radius: 16px; border: 3px solid #e3e6ee;
+  background: #f7f8fb; font-size: 24px; font-weight: 800; color: var(--navy);
+}
+.chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.nogrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; max-width: 460px; margin: 0 auto; }
+.nogrid .chip { min-width: 0; height: 54px; font-size: 21px; }
+.bigbtn {
+  margin-top: 28px; border: 0; border-radius: 999px; padding: 16px 40px;
+  background: var(--brand); color: #fff; font-size: 22px; font-weight: 800;
+  box-shadow: 0 6px 0 #4c1d95;
+}
+.bigbtn:disabled { opacity: .35; box-shadow: none; }
+.bigbtn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 3px 0 #4c1d95; }
+.det { font-size: 72px; line-height: 1; }
+.mission-card h1 { margin: 10px 0 6px; font-size: 30px; color: var(--navy); }
+.mq { font-size: 26px; line-height: 1.35; margin: 12px 0 14px; font-weight: 600; }
+.ghost { border: 2px solid #d6dbe6; background: #fff; border-radius: 999px; padding: 8px 18px; font-size: 17px; }
+.steps { text-align: left; display: inline-block; font-size: 20px; line-height: 1.8; margin: 18px 0 0; padding-left: 28px; }
+
+/* ---------- App shell ---------- */
+#app { height: 100dvh; display: flex; flex-direction: column; }
+.mission {
+  background: var(--navy); color: #fff; display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
+}
+.mission .mi { font-size: 26px; }
+.mission .q { flex: 1; font-size: 17px; font-weight: 600; line-height: 1.3; }
+.ansbtn {
+  border: 0; border-radius: 999px; padding: 11px 18px; background: var(--sun);
+  color: var(--navy); font-weight: 800; font-size: 17px; white-space: nowrap;
+}
+.chrome {
+  display: flex; align-items: center; gap: 4px; padding: 7px 10px;
+  background: #f1f3f4; border-bottom: 1px solid var(--line);
+}
+.navbtn {
+  width: 42px; height: 42px; border: 0; border-radius: 50%; background: transparent;
+  font-size: 30px; line-height: 1; color: #3c4043; display: grid; place-items: center;
+}
+.navbtn:disabled { opacity: .28; }
+.navbtn.home { font-size: 24px; }
+.url {
+  flex: 1; min-width: 0; background: #fff; border-radius: 999px; padding: 10px 16px;
+  font-size: 15px; color: #3c4043; display: flex; gap: 8px; align-items: center;
+}
+.url span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lock { font-size: 13px; }
+.viewport { position: relative; flex: 1; overflow: hidden; background: #fff; }
+#page { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* ---------- Super Search ---------- */
+.logo { font-weight: 800; letter-spacing: -1.5px; line-height: 1; white-space: nowrap; }
+.logo.big { font-size: clamp(46px, 11vw, 74px); }
+.logo.small { font-size: 28px; letter-spacing: -.5px; }
+.home { min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: 14px 16px 40px; }
+.home-top { align-self: stretch; display: flex; justify-content: flex-end; align-items: center; gap: 18px; font-size: 14px; color: #3c4043; }
+.avatar {
+  width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--brand); color: #fff;
+  font-size: 13px; font-weight: 700; display: grid; place-items: center;
+}
+.home-mid { margin-top: 13vh; width: 100%; max-width: 620px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+.sbox {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 54px; padding: 0 8px 0 18px;
+  border: 1px solid #dfe1e5; border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 6px rgba(32,33,36,.16);
+}
+.sbox .mag { font-size: 17px; opacity: .6; }
+.sbox input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;
+  font-size: 19px; color: var(--ink); -webkit-appearance: none;
+}
+.sbox input::-webkit-search-decoration, .sbox input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.mic { width: 42px; height: 42px; border: 0; border-radius: 50%; background: transparent; font-size: 21px; }
+.mic.listening { background: #fde2e4; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { transform: scale(1.12); } }
+.hbtns { display: flex; gap: 12px; }
+.hbtns button { background: #f8f9fa; border: 1px solid #f8f9fa; border-radius: 8px; padding: 11px 18px; font-size: 15px; color: #3c4043; }
+.hfoot { margin-top: auto; padding-top: 40px; font-size: 13px; color: #70757a; }
+
+.rhead { display: flex; align-items: center; gap: 18px; padding: 16px 18px 10px; flex-wrap: wrap; }
+.rhead .sbox { flex: 1; min-width: 240px; max-width: 640px; height: 48px; box-shadow: none; }
+.rhead .sbox input { font-size: 17px; }
+.tabs { display: flex; gap: 24px; padding: 0 18px; border-bottom: 1px solid #ebebeb; font-size: 14px; color: var(--muted); overflow-x: auto; }
+.tabs span { padding: 10px 2px 11px; white-space: nowrap; }
+.tabs .on { color: var(--brand); border-bottom: 3px solid var(--brand); font-weight: 600; }
+.results { max-width: 700px; padding: 6px 18px 60px; }
+@media (min-width: 900px) { .results { margin-left: 150px; } .tabs { padding-left: 168px; } }
+.stats { color: #70757a; font-size: 14px; margin: 12px 0 18px; }
+.res { margin-bottom: 30px; }
+.res a { text-decoration: none; color: inherit; display: block; -webkit-tap-highlight-color: rgba(26,13,171,.08); }
+.spons { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.site { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.fav { width: 30px; height: 30px; flex: none; border-radius: 50%; background: #f1f3f4; border: 1px solid #ececec; display: grid; place-items: center; font-size: 15px; }
+.site b { display: block; font-weight: 400; font-size: 14px; }
+.site small { display: block; font-size: 12.5px; color: #4d5156; }
+.ttl { font-size: 21px; line-height: 1.3; color: var(--link); }
+.res a:active .ttl { text-decoration: underline; }
+.res p { margin: 5px 0 0; font-size: 15px; line-height: 1.55; color: #4d5156; }
+.noresults { padding: 20px 0; font-size: 16px; line-height: 1.6; }
+.noresults ul { margin: 6px 0 0; padding-left: 26px; }
+
+/* ---------- Fake websites (each looks different on purpose) ---------- */
+.site-page { min-height: 100%; display: flex; flex-direction: column; }
+.site-page > * { flex: 1 0 auto; }
+.pform { display: grid; gap: 14px; max-width: 460px; margin: 18px auto 0; text-align: left; }
+.pform label { display: grid; gap: 6px; font-weight: 600; font-size: 16px; }
+.pform input { height: 50px; border-radius: 10px; border: 2px solid #cfd5df; padding: 0 14px; font-size: 18px; background: #fff; }
+.pform input:focus { outline: 0; border-color: currentColor; }
+.pform .err { color: #c62828; font-weight: 600; margin: 0; }
+.pform button { height: 56px; border: 0; border-radius: 12px; font-size: 20px; font-weight: 800; color: #fff; }
+.done { text-align: center; padding: 70px 24px; }
+.done .big { font-size: 80px; }
+.done h1 { font-size: 28px; margin: 12px 0; }
+.done p { font-size: 18px; color: #444; }
+
+/* HK Bin Facts — looks official, but is wrong */
+.facts { background: #f4f8fb; }
+.f-top { background: #0b5394; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; }
+.f-logo { font-weight: 800; font-size: 20px; letter-spacing: .5px; }
+.f-badge { background: #34a853; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 700; }
+.f-nav { background: #fff; border-bottom: 1px solid #dde6ee; padding: 10px 20px; font-size: 14px; color: #0b5394; display: flex; gap: 18px; }
+.f-body { max-width: 760px; margin: 0 auto; padding: 22px 18px 50px; }
+.f-body h1 { color: #0b3d6e; margin: 0 0 6px; font-size: 28px; }
+.f-meta { color: #5b6b7a; font-size: 14px; margin-bottom: 20px; }
+.f-bins { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 10px 0 22px; }
+.bin { background: #fff; border-radius: 16px; padding: 14px 10px 16px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+.bin .lid { height: 16px; border-radius: 8px 8px 0 0; margin: 0 14px; filter: brightness(.88); }
+.bin .body { height: 92px; border-radius: 0 0 14px 14px; margin: 0 8px; display: grid; place-items: center; font-size: 40px; }
+.bin b { display: block; margin-top: 10px; font-size: 16px; }
+.bin small { color: #666; }
+.f-box { background: #fff8d6; border-left: 6px solid #f2b705; padding: 14px 16px; border-radius: 8px; font-size: 17px; line-height: 1.5; }
+.f-share { margin: 20px 0; width: 100%; height: 54px; border: 0; border-radius: 12px; background: #1877f2; color: #fff; font-weight: 800; font-size: 18px; }
+.f-ad { display: block; width: 100%; border: 3px dashed #e53935; border-radius: 12px; background: #fff0f0; color: #c62828; padding: 14px; text-align: center; font-weight: 800; font-size: 18px; }
+.f-foot { margin-top: 30px; font-size: 11px; color: #9aa6b2; text-align: center; }
+
+/* KidsAsk forum */
+.forum { background: #eef1f5; }
+.fo-top { background: #ff6f00; color: #fff; padding: 14px 20px; font-weight: 800; font-size: 20px; }
+.fo-top span { font-weight: 400; font-size: 14px; opacity: .9; margin-left: 8px; }
+.fo-body { max-width: 720px; margin: 0 auto; padding: 18px 14px 50px; }
+.fo-post { background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+.fo-post h2 { margin: 6px 0 0; font-size: 21px; }
+.fo-who { font-size: 13px; color: #777; }
+.fo-ans p { margin: 8px 0 6px; font-size: 17px; }
+.fo-like { font-size: 13px; color: #777; }
+.fo-ans a { color: #1565c0; }
+
+/* Funny Videos */
+.vid { background: #0f0f0f; color: #f1f1f1; }
+.v-top { padding: 12px 18px; font-weight: 800; font-size: 19px; }
+.v-body { max-width: 860px; margin: 0 auto; padding: 0 0 40px; }
+.player { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, #ffcc80, #ff8a65); display: grid; place-items: center; }
+.v-art { font-size: 70px; }
+.play { position: absolute; width: 90px; height: 64px; border-radius: 18px; border: 0; background: #ff0033; color: #fff; font-size: 30px; }
+.v-off { position: absolute; inset: 0; background: #000; color: #aaa; display: grid; place-items: center; font-size: 17px; }
+.v-info { padding: 14px 16px; }
+.v-info h2 { margin: 0 0 4px; font-size: 20px; }
+.v-info p { margin: 0; color: #aaa; font-size: 14px; }
+.v-next { padding: 6px 16px; color: #aaa; font-size: 15px; line-height: 1.9; }
+
+/* Super Bins Shop */
+.shop { background: #fff; }
+.sh-top { background: #111; color: #ffd600; font-weight: 900; font-size: 22px; padding: 14px 20px; letter-spacing: 1px; }
+.sh-sale { background: #ff1744; color: #fff; text-align: center; font-weight: 900; font-size: 22px; padding: 12px; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { background: #d50000; } }
+.sh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; padding: 18px; max-width: 820px; margin: 0 auto; }
+.prod { border: 1px solid #eee; border-radius: 14px; padding: 14px; text-align: center; }
+.prod .pic { height: 110px; border-radius: 12px; display: grid; place-items: center; font-size: 54px; }
+.prod h3 { margin: 10px 0 2px; font-size: 17px; }
+.prod s { color: #999; font-size: 14px; }
+.prod .price { color: #d50000; font-weight: 900; font-size: 24px; }
+.prod button { margin-top: 8px; width: 100%; height: 46px; border: 0; border-radius: 10px; background: #ffd600; font-weight: 800; font-size: 17px; }
+.sh-note { text-align: center; color: #555; padding: 0 16px 40px; }
+.checkout { max-width: 520px; margin: 0 auto; padding: 22px 18px 50px; }
+.checkout .pform button { background: #111; color: #ffd600; }
+
+/* Kids Prize Club */
+.quiz { background: linear-gradient(180deg, #7b1fa2, #4a148c); color: #fff; min-height: 100%; }
+.qz-top { padding: 14px 20px; font-weight: 900; font-size: 20px; color: #ffeb3b; }
+.qz-body { max-width: 620px; margin: 0 auto; padding: 8px 18px 50px; text-align: center; }
+.qz-body h1 { margin: 6px 0; font-size: 30px; }
+.qz-q { background: rgba(255,255,255,.14); border-radius: 16px; padding: 16px; font-size: 21px; font-weight: 700; margin: 20px 0 14px; }
+.qz-opts { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.qz-opts button { min-width: 140px; height: 58px; border: 0; border-radius: 14px; background: #fff; color: #4a148c; font-size: 20px; font-weight: 800; }
+.qz-res { margin-top: 20px; font-size: 20px; font-weight: 700; }
+.quiz .pform label { color: #fff; }
+.quiz .pform button { background: #ffeb3b; color: #4a148c; }
+
+/* Free iPad Winner */
+.prize { background: radial-gradient(circle at 50% 0, #fff59d, #ffca28 60%, #ff8f00); min-height: 100%; }
+.pz-top { background: #c62828; color: #fff; padding: 12px 20px; font-weight: 900; font-size: 20px; }
+.pz-body { max-width: 560px; margin: 0 auto; padding: 16px 18px 50px; text-align: center; }
+.pz-body h1 { margin: 6px 0; color: #b71c1c; font-size: 30px; }
+.pz-gift { font-size: 80px; }
+.pz-timer { font-size: 20px; color: #b71c1c; font-weight: 800; }
+.prize .pform button { background: #2e7d32; }
+
+/* iPad Cleaner PRO */
+.cleaner { background: #101820; color: #e8f1f8; min-height: 100%; }
+.cl-top { padding: 14px 20px; font-weight: 900; font-size: 20px; color: #4fc3f7; }
+.cl-body { max-width: 560px; margin: 0 auto; padding: 10px 18px 50px; text-align: center; font-size: 18px; }
+.cl-bar { height: 18px; border-radius: 9px; background: #263544; overflow: hidden; margin: 20px 0 10px; }
+.cl-bar div { height: 100%; width: 72%; background: linear-gradient(90deg, #ff5252, #ff1744); }
+.cleaner .pform label { color: #e8f1f8; }
+.cleaner .pform button { background: #ff1744; }
+
+/* ---------- Pop-ups ---------- */
+.pop-wrap { position: absolute; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 5; }
+.pop { position: relative; width: 100%; max-width: 420px; border-radius: 18px; text-align: center; padding: 26px 22px 24px; animation: popin .35s ease-out; }
+@keyframes popin { from { transform: scale(.7); opacity: 0; } }
+.pop-x { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border: 0; background: transparent; color: #b08a2a; font-size: 15px; }
+.pop-prize { background: linear-gradient(180deg, #fffde7, #ffe082); border: 5px solid #ffb300; }
+.pop-prize h2 { margin: 6px 0; color: #d32f2f; font-size: 28px; letter-spacing: 1px; animation: blinktxt .8s steps(2) infinite; }
+@keyframes blinktxt { 50% { color: #1565c0; } }
+.pop-prize .confetti { font-size: 34px; }
+.pop-prize .gift { font-size: 70px; margin: 6px 0; }
+.pop-prize .big { font-size: 24px; font-weight: 900; margin: 6px 0; }
+.pop-prize .timer { color: #b71c1c; font-weight: 700; }
+.claim { margin-top: 10px; width: 100%; height: 62px; border: 0; border-radius: 14px; background: #2e7d32; color: #fff; font-size: 24px; font-weight: 900; box-shadow: 0 5px 0 #1b5e20; }
+.pop-virus { background: #fff; border-top: 14px solid #d50000; text-align: left; }
+.pop-virus .vh { color: #d50000; font-size: 26px; font-weight: 900; }
+.pop-virus p { font-size: 18px; line-height: 1.45; }
+.clean { width: 100%; height: 58px; border: 0; border-radius: 12px; background: #d50000; color: #fff; font-size: 22px; font-weight: 900; }
+.vclose { display: block; margin: 12px auto 0; border: 0; background: none; color: #888; font-size: 15px; padding: 8px 14px; }
+
+/* ---------- Answer sheet ---------- */
+.modal { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
+.sheet { width: 100%; max-width: 560px; max-height: 92dvh; overflow-y: auto; background: #fff; border-radius: 24px; padding: 22px 20px 20px; }
+.sheet h3 { margin: 0 0 4px; font-size: 24px; color: var(--navy); }
+.sheet .aq { font-size: 19px; font-weight: 600; margin: 14px 0 10px; }
+.colours { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.colours button { height: 64px; border-radius: 14px; border: 3px solid #e3e6ee; background: #fff; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 18px; font-weight: 700; }
+.colours i { width: 30px; height: 30px; border-radius: 50%; flex: none; border: 1px solid rgba(0,0,0,.15); }
+.colours button.on, .sources button.on { border-color: var(--brand); background: #f3edff; }
+.sources { display: grid; gap: 8px; }
+.sources button { min-height: 52px; border-radius: 12px; border: 3px solid #e3e6ee; background: #fff; text-align: left; padding: 8px 14px; font-size: 16px; }
+.sources small { color: var(--muted); }
+.sheet .row { display: flex; gap: 10px; margin-top: 18px; }
+.sheet .row button { flex: 1; height: 54px; border-radius: 14px; font-size: 19px; font-weight: 800; border: 0; }
+.sheet .cancel { background: #eef0f4; }
+.sheet .save { background: var(--brand); color: #fff; }
+.sheet .err { color: #c62828; font-weight: 600; margin: 10px 0 0; }
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--navy); color: #fff; border-radius: 999px; padding: 12px 22px; font-size: 17px; font-weight: 600; z-index: 30; }
+
+@media (max-width: 600px) {
+  .mission .q { font-size: 15px; }
+  .f-bins { gap: 8px; }
+  .bin b { font-size: 13px; }
+  .colours { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- 1. Who are you? (class + class number only, never a name) -->
+<section id="join" class="screen">
+  <div class="card">
+    <div class="logo big" data-logo></div>
+    <p class="sub">Search practice</p>
+    <h2>1. Your class</h2>
+    <div class="clsrow" id="clsrow"></div>
+    <h2>2. Your class number</h2>
+    <div class="nogrid" id="nogrid"></div>
+    <button id="startBtn" class="bigbtn" disabled>Start ▶</button>
+  </div>
+</section>
+
+<!-- 2. Mission -->
+<section id="intro" class="screen" hidden>
+  <div class="card mission-card">
+    <div class="det">🕵️</div>
+    <h1>Your Mission</h1>
+    <p class="mq">What colour is the recycling bin for <b>PAPER</b> in Hong Kong?</p>
+    <button id="speak" class="ghost">🔊 Listen</button>
+    <br>
+    <ol class="steps">
+      <li>Search on <b>Super Search</b>.</li>
+      <li>Find the answer.</li>
+      <li>Tap <b>✏️ My Answer</b>.</li>
+    </ol>
+    <br>
+    <button id="goBtn" class="bigbtn">Let's go! ▶</button>
+  </div>
+</section>
+
+<!-- 3. Practice browser -->
+<section id="app" hidden>
+  <header class="mission">
+    <span class="mi">🕵️</span>
+    <span class="q">What colour is the recycling bin for <b>PAPER</b> in Hong Kong?</span>
+    <button id="ansBtn" class="ansbtn">✏️ My Answer</button>
+  </header>
+  <div class="chrome">
+    <button class="navbtn" id="backBtn" aria-label="Back">‹</button>
+    <button class="navbtn" id="fwdBtn" aria-label="Forward">›</button>
+    <div class="url"><span class="lock">🔒</span><span id="url"></span></div>
+    <button class="navbtn home" id="homeBtn" aria-label="Home">⌂</button>
+  </div>
+  <div class="viewport">
+    <div id="page"></div>
+    <div id="pop" class="pop-wrap" hidden></div>
+  </div>
+</section>
+
+<div id="answer" class="modal" hidden>
+  <div class="sheet">
+    <h3>✏️ My Answer</h3>
+    <p class="aq">What colour is the recycling bin for PAPER?</p>
+    <div class="colours" id="colours"></div>
+    <p class="aq">Where did you find the answer?</p>
+    <div class="sources" id="sources"></div>
+    <p class="err" id="ansErr" hidden></p>
+    <div class="row">
+      <button class="cancel" id="ansCancel">Back</button>
+      <button class="save" id="ansSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ===== Settings: paste the Apps Script Web app URL here (leave '' for demo mode) ===== */
+const CONFIG = {
+  API_URL: '',
+};
+const DEMO = !CONFIG.API_URL;
+
+const CLASSES = ['2A', '2B', '2C', '2D', '2E'];
+const MAX_NO = 30;
+const MISSION = 'What colour is the recycling bin for paper in Hong Kong?';
+const GOV_URL = 'https://www.wastereduction.gov.hk/en-hk/waste-reduction-programme/kerbside-recycling-bin';
+
+// Every website in the practice. Only "gov" is real; it opens in a new Safari tab.
+const SITES = {
+  results: { name: 'The Super Search results page', host: 'www.supersearch.com' },
+  gov:     { name: 'Hong Kong Waste Reduction Website', host: 'www.wastereduction.gov.hk' },
+  facts:   { name: 'HK Bin Facts', host: 'www.hk-bin-facts.net' },
+  forum:   { name: 'KidsAsk', host: 'www.kidsask-forum.com' },
+  video:   { name: 'Funny Videos', host: 'www.funny-videos.com' },
+  shop:    { name: 'Super Bins Shop', host: 'www.superbins-shop.com' },
+  quiz:    { name: 'Kids Prize Club', host: 'www.kids-prize-club.win' },
+  prize:   { name: 'Free iPad Winner', host: 'www.free-ipad-winner.win' },
+  cleaner: { name: 'iPad Cleaner PRO', host: 'www.ipad-cleaner-pro.win' },
+};
+
+const RESULTS = [
+  { go: 'shop', ad: true, fav: '🛒', title: 'Buy Recycling Bins – 50% OFF Today Only!', path: '› sale',
+    text: 'Paper bins, rainbow bins, mega bins! Free delivery in Hong Kong. Big sale ends tonight – shop now!' },
+  { go: 'quiz', ad: true, fav: '🏆', title: 'Recycling Quiz for Kids – Win 1000 Game Coins! 🎮', path: '› recycling-hero',
+    text: 'Answer 1 easy question about recycling bins and win 1000 FREE game coins. Every kid wins!' },
+  { go: 'facts', fav: '✅', title: 'Hong Kong Recycling Bin Colours – Official Easy Guide ✓', path: '› bin-colours',
+    text: 'In Hong Kong, PAPER goes in the YELLOW bin. Aluminium cans go in the BLUE bin. Checked by experts ✓ Updated today.' },
+  { go: 'gov', fav: '♻️', title: 'Kerbside Recycling Bin | Hong Kong Waste Reduction Website', path: '› waste-reduction-programme › kerbside-recycling-bin',
+    text: 'Recycling bins in public places for the most common recyclables – paper, plastic and metals. What to recycle? Clean recycling tips …' },
+  { go: 'forum', fav: '💬', title: 'what colour is the paper bin?? need for homework', path: '› questions › 88213',
+    text: '12 answers · "green 100% sure" · "brown i think" · "my mum says blue but not sure lol" …' },
+  { go: 'video', fav: '▶️', title: 'Silly Bin Song 🎵 – watch now! 😂', path: '› watch',
+    text: '1.2M views · The funniest bin song ever! Sing along with Bobby the Bin.' },
+];
+
+const FIELD_LABEL = {
+  name: 'Full name', school: 'School', class: 'Class', phone: 'Phone number',
+  address: 'Home address', birthday: 'Birthday',
+};
+
+const COLOURS = [
+  ['blue', 'Blue', '#1e6fd9'], ['yellow', 'Yellow', '#ffd23f'], ['brown', 'Brown', '#8d5a2b'],
+  ['green', 'Green', '#2e9d4f'], ['red', 'Red', '#e53935'], ['black', 'Black', '#222'],
+];
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const readJSON = (k, d) => { try { return JSON.parse(store.get(k)) ?? d; } catch { return d; } };
+
+function logoHTML() {
+  const cols = ['#6d28d9', '#ea580c', '#0f766e', '#db2777'];
+  let i = 0;
+  return [...'Super Search'].map(c => c === ' ' ? '&nbsp;' : `<span style="color:${cols[i++ % 4]}">${c}</span>`).join('');
+}
+document.querySelectorAll('[data-logo]').forEach(el => el.innerHTML = logoHTML());
+
+let toastTimer;
+function toast(msg) {
+  $('toast').textContent = msg; $('toast').hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 2200);
+}
+
+/* ---------- Recording (sent to the teacher; never what is typed into forms) ---------- */
+let me = readJSON('sp_me', null);            // { cls, no }
+let visited = readJSON('sp_visited', []);    // site keys, for "Where did you find it?"
+let outbox = readJSON('sp_outbox', []);
+let seq = Number(store.get('sp_seq') || 0);
+const sid = 's' + Math.random().toString(36).slice(2, 10);
+
+function log(type, site = '', detail = '') {
+  if (!me) return;
+  seq++; store.set('sp_seq', String(seq));
+  outbox.push({ id: `${sid}-${seq}`, cls: me.cls, no: me.no, type, site, detail: String(detail).slice(0, 100) });
+  store.set('sp_outbox', JSON.stringify(outbox));
+  clearTimeout(flushTimer); flushTimer = setTimeout(flush, 800);
+}
+
+let flushTimer, sending = false;
+async function flush(keepalive = false) {
+  if (sending || !outbox.length) return;
+  const first = outbox[0];
+  const batch = outbox.filter(e => e.cls === first.cls && e.no === first.no).slice(0, 50);
+  const ids = new Set(batch.map(e => e.id));
+  sending = true;
+  try {
+    if (DEMO) {
+      const rows = readJSON('sp_demo_log', []);
+      const now = new Date().toISOString();
+      batch.forEach(e => rows.push([now, e.cls, e.no, sid, e.id, e.type, e.site, e.detail]));
+      store.set('sp_demo_log', JSON.stringify(rows));
+    } else {
+      const res = await fetch(CONFIG.API_URL, {
+        method: 'POST', keepalive,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'log', cls: first.cls, no: first.no, sid,
+          events: batch.map(({ id, type, site, detail }) => ({ id, type, site, detail })) }),
+      });
+      const out = await res.json();
+      if (!out.ok) throw new Error(out.error);
+    }
+    outbox = outbox.filter(e => !ids.has(e.id));
+    store.set('sp_outbox', JSON.stringify(outbox));
+  } catch (err) {
+    // Offline or server busy: keep the events and try again shortly.
+  } finally {
+    sending = false;
+    if (outbox.length) { clearTimeout(flushTimer); flushTimer = setTimeout(flush, 4000); }
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) flush(true); });
+if (outbox.length) setTimeout(flush, 1000);
+
+/* ---------- Join ---------- */
+let pick = { cls: '', no: 0 };
+$('clsrow').innerHTML = CLASSES.map(c => `<button class="chip" data-cls="${c}">${c}</button>`).join('');
+$('nogrid').innerHTML = Array.from({ length: MAX_NO }, (_, i) => `<button class="chip" data-no="${i + 1}">${i + 1}</button>`).join('');
+$('clsrow').onclick = e => {
+  const b = e.target.closest('[data-cls]'); if (!b) return;
+  pick.cls = b.dataset.cls; markOn('clsrow', b);
+};
+$('nogrid').onclick = e => {
+  const b = e.target.closest('[data-no]'); if (!b) return;
+  pick.no = Number(b.dataset.no); markOn('nogrid', b);
+};
+function markOn(box, b) {
+  $(box).querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+  $('startBtn').disabled = !(pick.cls && pick.no);
+  $('startBtn').textContent = pick.cls && pick.no ? `I am ${pick.cls} · No. ${pick.no} ▶` : 'Start ▶';
+}
+$('startBtn').onclick = () => {
+  me = { cls: pick.cls, no: pick.no };
+  visited = []; ans = { colour: '', source: '' };
+  store.set('sp_me', JSON.stringify(me)); store.set('sp_visited', '[]'); store.del('sp_answer');
+  log('join');
+  showScreen('intro');
+};
+$('speak').onclick = () => {
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance('Your mission. ' + MISSION);
+    u.lang = 'en-GB'; u.rate = 0.85; speechSynthesis.speak(u);
+  } catch {}
+};
+$('goBtn').onclick = () => { showScreen('app'); go('home'); };
+
+function showScreen(id) {
+  ['join', 'intro', 'app'].forEach(s => $(s).hidden = s !== id);
+}
+
+/* ---------- Practice browser ---------- */
+let hist = [], pos = -1, pageTimers = [];
+
+function go(name, params = {}) {
+  hist = hist.slice(0, pos + 1);
+  hist.push({ name, params }); pos++;
+  const site = PAGES[name].site;
+  if (site && PAGES[name].entry) { log('open', site); addVisited(site); }
+  show();
+}
+function show() {
+  pageTimers.forEach(clearTimeout); pageTimers = [];
+  closePopup(true);
+  const { name, params } = hist[pos];
+  const P = PAGES[name];
+  $('url').textContent = P.url(params);
+  $('page').innerHTML = `<div class="site-page">${P.render(params)}</div>`;
+  $('page').scrollTop = 0;
+  wireForms();
+  P.after && P.after(params);
+  $('backBtn').disabled = pos <= 0;
+  $('fwdBtn').disabled = pos >= hist.length - 1;
+}
+$('backBtn').onclick = () => { if (pos > 0) { pos--; show(); } };
+$('fwdBtn').onclick = () => { if (pos < hist.length - 1) { pos++; show(); } };
+$('homeBtn').onclick = () => go('home');
+
+function addVisited(site) {
+  if (!visited.includes(site)) { visited.push(site); store.set('sp_visited', JSON.stringify(visited)); }
+}
+function later(fn, ms) { pageTimers.push(setTimeout(fn, ms)); }
+
+/* ---------- Keywords ---------- */
+const KW = {
+  paper: ['paper', 'papers'],
+  bin: ['bin', 'bins'],
+  recycle: ['recycle', 'recycling', 'recycled', 'recyclable'],
+  colour: ['colour', 'color', 'colours', 'colors'],
+};
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function has(tokens, words) {
+  return tokens.some(t => words.some(w => t === w || (t.length >= 4 && w.length >= 4 && lev(t, w) <= (w.length >= 7 ? 2 : 1))));
+}
+function keywordsOk(q) {
+  const t = q.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
+  return has(t, KW.paper) && (has(t, KW.bin) || has(t, KW.recycle) || has(t, KW.colour));
+}
+function doSearch(q) {
+  q = q.trim();
+  if (!q) return;
+  const ok = keywordsOk(q);
+  log('search', ok ? 'ok' : 'no', q.slice(0, 80));
+  go('results', { q, ok });
+}
+function wireSearch() {
+  const form = $('sform'), input = $('q');
+  form.onsubmit = e => { e.preventDefault(); input.blur(); doSearch(input.value); };
+  const sbtn = $('sbtn'); if (sbtn) sbtn.onclick = () => doSearch(input.value);
+  const clr = $('clr'); if (clr) clr.onclick = () => { input.value = ''; input.focus(); };
+  const mic = $('mic');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { mic.hidden = true; return; }
+  mic.onclick = () => {
+    try {
+      const r = new SR();
+      r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 1;
+      r.onresult = e => { input.value = e.results[0][0].transcript; doSearch(input.value); };
+      r.onend = () => mic.classList.remove('listening');
+      r.onerror = () => mic.classList.remove('listening');
+      mic.classList.add('listening'); r.start();
+    } catch { mic.classList.remove('listening'); }
+  };
+}
+const searchBox = (q = '') => `
+  <form class="sbox" id="sform" role="search">
+    <span class="mag">🔍</span>
+    <input id="q" type="search" enterkeyhint="search" autocomplete="off" aria-label="Search" value="${esc(q)}">
+    <button type="button" class="mic" id="mic" aria-label="Search by voice">🎤</button>
+  </form>`;
+
+/* ---------- Forms on the fake sites ----------
+   We only record WHICH boxes were filled in. The text itself is never saved or sent. */
+function formHTML(site, fields, button, doneMsg) {
+  return `<form class="pform" data-site="${site}" data-done="${esc(doneMsg)}" autocomplete="off" novalidate>
+    ${fields.map(f => `<label>${FIELD_LABEL[f]}
+      <input data-f="${f}" name="x${Math.random().toString(36).slice(2, 8)}" autocomplete="off"
+        autocorrect="off" autocapitalize="off" spellcheck="false"${f === 'phone' ? ' inputmode="tel"' : ''}></label>`).join('')}
+    <p class="err" hidden>Please fill in your details.</p>
+    <button type="submit">${button}</button>
+  </form>`;
+}
+function wireForms() {
+  $('page').querySelectorAll('.pform').forEach(form => {
+    const site = form.dataset.site, logged = new Set();
+    const note = input => {
+      const f = input.dataset.f;
+      if (input.value.trim() && !logged.has(f)) { logged.add(f); log('typed', site, f); }
+    };
+    form.querySelectorAll('input').forEach(i => i.addEventListener('change', () => note(i)));
+    form.onsubmit = e => {
+      e.preventDefault();
+      const inputs = [...form.querySelectorAll('input')];
+      inputs.forEach(note);
+      const filled = inputs.filter(i => i.value.trim()).map(i => i.dataset.f);
+      if (!filled.length) { form.querySelector('.err').hidden = false; return; }
+      log('submit', site, filled.join(','));
+      const msg = form.dataset.done;
+      form.reset();
+      go('done', { site, msg });
+    };
+  });
+}
+
+/* ---------- Pop-ups ---------- */
+let popTimer;
+function showPopup(kind) {
+  const box = $('pop');
+  log('popup_show', kind, hist[pos].name);
+  if (kind === 'ipad') {
+    box.innerHTML = `<div class="pop pop-prize">
+      <button class="pop-x" data-act="close" aria-label="Close">✕</button>
+      <div class="confetti">🎉 🎊 🎉</div>
+      <h2>CONGRATULATIONS!</h2>
+      <p>You are today's <b>lucky winner!</b></p>
+      <div class="gift">🎁</div>
+      <p class="big">You win a FREE iPad!</p>
+      <p class="timer">Offer ends in <b id="cd">00:59</b></p>
+      <button class="claim" data-act="tap">CLAIM NOW ▶</button>
+    </div>`;
+    let s = 59;
+    popTimer = setInterval(() => { s = s > 0 ? s - 1 : 59; const c = $('cd'); if (c) c.textContent = '00:' + String(s).padStart(2, '0'); }, 1000);
+  } else {
+    box.innerHTML = `<div class="pop pop-virus">
+      <div class="vh">⚠️ WARNING!</div>
+      <p>Your iPad has <b>(3) viruses!</b> Your photos and games may be deleted.</p>
+      <p>Tap <b>Clean Now</b> to remove the viruses right away.</p>
+      <button class="clean" data-act="tap">Clean Now</button>
+      <button class="vclose" data-act="close">Close</button>
+    </div>`;
+  }
+  box.hidden = false;
+  box.onclick = e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const act = b.dataset.act;
+    closePopup();
+    if (act === 'tap') { log('popup_tap', kind); go(kind === 'ipad' ? 'prize' : 'cleaner'); }
+    else { log('popup_close', kind); afterPopup && afterPopup(); }
+  };
+}
+let afterPopup = null;
+function closePopup(silent) {
+  clearInterval(popTimer);
+  $('pop').hidden = true; $('pop').innerHTML = '';
+  if (silent) afterPopup = null;
+}
+const shown = { resultsPop: false, factsPop: false };
+
+/* ---------- Pages ---------- */
+const PAGES = {
+  home: {
+    url: () => 'https://www.supersearch.com',
+    render: () => `<div class="home">
+      <div class="home-top"><span>Images</span><span>News</span>
+        <button class="avatar" id="who" title="Change class or number">${esc(me.cls)}·${me.no}</button></div>
+      <div class="home-mid">
+        <div class="logo big">${logoHTML()}</div>
+        ${searchBox()}
+        <div class="hbtns"><button type="button" id="sbtn">Super Search</button><button type="button" id="clr">Clear</button></div>
+      </div>
+      <div class="hfoot">Hong Kong</div>
+    </div>`,
+    after: () => {
+      wireSearch();
+      $('who').onclick = () => {
+        if (!confirm(`You are ${me.cls} · No. ${me.no}. Change class or number?`)) return;
+        me = null; store.del('sp_me'); hist = []; pos = -1;
+        pick = { cls: '', no: 0 };
+        document.querySelectorAll('.chip.on').forEach(x => x.classList.remove('on'));
+        $('startBtn').disabled = true; $('startBtn').textContent = 'Start ▶';
+        showScreen('join');
+      };
+    },
+  },
+
+  results: {
+    url: p => 'https://www.supersearch.com/search?q=' + encodeURIComponent(p.q).replace(/%20/g, '+'),
+    render: p => `
+      <div class="rhead"><div class="logo small">${logoHTML()}</div>${searchBox(p.q)}</div>
+      <div class="tabs"><span class="on">All</span><span>Images</span><span>Videos</span><span>News</span><span>Maps</span></div>
+      <div class="results">${p.ok ? `
+        <div class="stats">About 2,340,000 results (0.38 seconds)</div>
+        ${RESULTS.map((r, i) => {
+          const s = SITES[r.go];
+          const inner = `${r.ad ? '<div class="spons">Sponsored</div>' : ''}
+            <div class="site"><span class="fav">${r.fav}</span><div><b>${s.name}</b><small>https://${s.host} ${r.path}</small></div></div>
+            <div class="ttl">${r.title}</div>`;
+          const link = r.go === 'gov'
+            ? `<a href="${GOV_URL}" target="_blank" rel="noopener" data-gov>${inner}</a>`
+            : `<a href="#" data-go="${r.go}">${inner}</a>`;
+          return `<div class="res">${link}<p>${r.text}</p></div>`;
+        }).join('')}` : `
+        <div class="noresults">
+          <p>Your search – <b>${esc(p.q)}</b> – did not match any good results.</p>
+          <p>Suggestions:</p>
+          <ul><li>Make sure all words are spelled correctly.</li><li>Try different keywords.</li><li>Try fewer words.</li></ul>
+        </div>`}
+      </div>`,
+    after: p => {
+      wireSearch();
+      $('page').querySelectorAll('[data-go]').forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.go); });
+      const gov = $('page').querySelector('[data-gov]');
+      if (gov) gov.onclick = () => { log('open', 'gov'); addVisited('gov'); flush(true); };
+      if (p.ok && !shown.resultsPop) later(() => { shown.resultsPop = true; showPopup('ipad'); }, 12000);
+    },
+  },
+
+  facts: {
+    site: 'facts', entry: true,
+    url: () => 'https://www.hk-bin-facts.net/bin-colours',
+    render: () => `<div class="facts">
+      <div class="f-top"><div class="f-logo">✅ HK BIN FACTS</div><div class="f-badge">✓ Official Guide</div></div>
+      <div class="f-nav"><span>Home</span><span>Bin Colours</span><span>Tips</span><span>About</span></div>
+      <div class="f-body">
+        <h1>Hong Kong Recycling Bin Colours</h1>
+        <div class="f-meta">The easy guide for kids and families · ✓ Checked by experts · Updated today</div>
+        <div class="f-bins">
+          ${bin('#ffd23f', '📄', 'PAPER', 'Yellow bin')}
+          ${bin('#1e6fd9', '🥫', 'CANS', 'Blue bin')}
+          ${bin('#8d5a2b', '🧴', 'PLASTIC', 'Brown bin')}
+        </div>
+        <div class="f-box"><b>Remember!</b> Paper always goes in the <b>YELLOW</b> bin. Many people get this wrong! Blue bins are only for cans.</div>
+        <button class="f-share" id="share">📢 Share this with all your friends!</button>
+        <a href="#" class="f-ad" id="fad">🎁 FREE iPad giveaway – tap here! 🎁</a>
+        <div class="f-foot">© HK Bin Facts. This is not a government website. Information may not be correct.</div>
+      </div></div>`,
+    after: () => {
+      $('share').onclick = () => { log('share', 'facts'); toast('Shared with 25 friends! ✓'); };
+      $('fad').onclick = e => { e.preventDefault(); log('popup_tap', 'banner'); go('prize'); };
+      if (!shown.factsPop) later(() => { shown.factsPop = true; showPopup('ipad'); }, 4000);
+    },
+  },
+
+  forum: {
+    site: 'forum', entry: true,
+    url: () => 'https://www.kidsask-forum.com/questions/88213',
+    render: () => `<div class="forum">
+      <div class="fo-top">💬 KidsAsk<span>Ask anything!</span></div>
+      <div class="fo-body">
+        <div class="fo-post"><div class="fo-who">👦 coolkid2015 · 2 days ago</div>
+          <h2>what colour is the paper bin?? need for homework</h2></div>
+        ${answer('🐱', 'gamerboy88', 34, 'green 100% sure')}
+        ${answer('🦖', 'dinoXD', 12, 'brown i think. or yellow??')}
+        ${answer('🌸', 'lily_xoxo', 3, 'my mum says blue but not sure lol')}
+        ${answer('🤖', 'free_coins_bot', 0, 'FREE 1000 GAME COINS here 👉 <a href="#" id="botlink">kids-prize-club.win</a>')}
+      </div></div>`,
+    after: () => { $('botlink').onclick = e => { e.preventDefault(); go('quiz'); }; },
+  },
+
+  video: {
+    site: 'video', entry: true,
+    url: () => 'https://www.funny-videos.com/watch?v=b1nS0ng',
+    render: () => `<div class="vid">
+      <div class="v-top">▶️ Funny Videos</div>
+      <div class="v-body">
+        <div class="player" id="player"><div class="v-art">🗑️🎵🗑️</div><button class="play" id="play" aria-label="Play">▶</button></div>
+        <div class="v-info"><h2>Silly Bin Song 🎵 – watch now! 😂</h2><p>1.2M views · 3 days ago</p></div>
+        <div class="v-next">Up next<br>😹 Funny cat fails 2026<br>💃 Bin dance challenge<br>🍕 Pizza song</div>
+      </div></div>`,
+    after: () => {
+      $('play').onclick = () => {
+        log('play', 'video');
+        afterPopup = () => { const pl = $('player'); if (pl) pl.insertAdjacentHTML('beforeend', '<div class="v-off">This video is not available.</div>'); };
+        showPopup('virus');
+      };
+    },
+  },
+
+  shop: {
+    site: 'shop', entry: true,
+    url: () => 'https://www.superbins-shop.com/sale',
+    render: () => `<div class="shop">
+      <div class="sh-top">🛒 SUPER BINS SHOP</div>
+      <div class="sh-sale">🔥 50% OFF – TODAY ONLY! 🔥</div>
+      <div class="sh-grid">
+        ${prod('#f8bbd0', 'Rainbow Paper Bin', 599, 299)}
+        ${prod('#c8e6c9', 'Mega Green Bin', 999, 499)}
+        ${prod('#d1c4e9', 'Mini Purple Bin', 199, 99)}
+      </div>
+      <p class="sh-note">Free delivery! Pay when it arrives. 🚚</p></div>`,
+    after: () => $('page').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => go('checkout')),
+  },
+  checkout: {
+    site: 'shop',
+    url: () => 'https://www.superbins-shop.com/checkout',
+    render: () => `<div class="shop"><div class="sh-top">🛒 SUPER BINS SHOP</div>
+      <div class="checkout"><h2>Checkout</h2><p>Tell us where to send your bin.</p>
+        ${formHTML('shop', ['name', 'phone', 'address'], 'Place order', 'Order placed! 🎉 We will send your bin. Please pay $299 when it arrives.')}
+      </div></div>`,
+  },
+
+  quiz: {
+    site: 'quiz', entry: true,
+    url: () => 'https://www.kids-prize-club.win/recycling-hero',
+    render: () => `<div class="quiz">
+      <div class="qz-top">🏆 KIDS PRIZE CLUB</div>
+      <div class="qz-body">
+        <h1>Recycling Hero Challenge</h1>
+        <p>Answer 1 easy question and win <b>1000 FREE game coins!</b> 🪙</p>
+        <div class="qz-q">What colour is the recycling bin for paper?</div>
+        <div class="qz-opts"><button data-a="green">🟢 Green</button><button data-a="blue">🔵 Blue</button><button data-a="red">🔴 Red</button></div>
+        <div id="qzres"></div>
+      </div></div>`,
+    after: () => {
+      $('page').querySelector('.qz-opts').onclick = e => {
+        const b = e.target.closest('[data-a]'); if (!b) return;
+        const right = b.dataset.a === 'green';
+        $('qzres').innerHTML = `<div class="qz-res">${right
+          ? '✅ Correct! The paper bin is GREEN. You are a Recycling Hero!'
+          : '❌ Oops! The paper bin is GREEN. But don\'t worry – you still win!'}</div>
+          <p>Fill in your details to get your 1000 coins:</p>
+          ${formHTML('quiz', ['name', 'school', 'class', 'phone', 'address', 'birthday'], 'Get my coins! 🪙', '🎉 Done! Your 1000 coins are on the way. We will call you soon!')}`;
+        wireForms();
+        $('qzres').scrollIntoView({ behavior: 'smooth' });
+      };
+    },
+  },
+
+  prize: {
+    site: 'prize', entry: true,
+    url: () => 'https://www.free-ipad-winner.win/claim',
+    render: () => `<div class="prize">
+      <div class="pz-top">🎁 FREE iPad WINNER</div>
+      <div class="pz-body">
+        <h1>Congratulations, lucky winner!</h1>
+        <div class="pz-gift">🎁</div>
+        <p>Fill in your details to get your <b>FREE iPad</b>. Only <b>2</b> iPads left!</p>
+        <p class="pz-timer">Offer ends in <span id="pzcd">04:59</span></p>
+        ${formHTML('prize', ['name', 'phone', 'address', 'school'], 'Send me my iPad! 🎁', '🚚 Your FREE iPad will arrive in 3 days!')}
+      </div></div>`,
+    after: () => {
+      let s = 299;
+      const t = setInterval(() => {
+        const el = $('pzcd'); if (!el) { clearInterval(t); return; }
+        s = s > 0 ? s - 1 : 299;
+        el.textContent = `0${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      }, 1000);
+    },
+  },
+
+  cleaner: {
+    site: 'cleaner', entry: true,
+    url: () => 'https://www.ipad-cleaner-pro.win/scan',
+    render: () => `<div class="cleaner">
+      <div class="cl-top">🛡️ iPad Cleaner PRO</div>
+      <div class="cl-body">
+        <div class="cl-bar"><div></div></div>
+        <p>Scanning… <b>3 viruses found!</b> 🦠🦠🦠</p>
+        <p>To remove the viruses, enter your name and phone number to activate <b>iPad Cleaner PRO</b>.</p>
+        ${formHTML('cleaner', ['name', 'phone'], 'Activate & clean', '✅ Your iPad is clean! We will send a message to your phone.')}
+      </div></div>`,
+  },
+
+  done: {
+    url: p => `https://${SITES[p.site].host}/thank-you`,
+    render: p => `<div class="done"><div class="big">🎉</div><h1>Thank you!</h1><p>${esc(p.msg)}</p></div>`,
+  },
+};
+
+function bin(colour, icon, label, name) {
+  return `<div class="bin"><div class="lid" style="background:${colour}"></div>
+    <div class="body" style="background:${colour}">${icon}</div><b>${label}</b><small>${name}</small></div>`;
+}
+function answer(face, user, likes, text) {
+  return `<div class="fo-post fo-ans"><div class="fo-who">${face} ${user}</div><p>${text}</p><div class="fo-like">👍 ${likes}</div></div>`;
+}
+function prod(bg, name, was, now) {
+  return `<div class="prod"><div class="pic" style="background:${bg}">🗑️</div><h3>${name}</h3>
+    <s>$${was}</s> <span class="price">$${now}</span><button data-buy>Buy now</button></div>`;
+}
+
+/* ---------- My Answer ---------- */
+let ans = readJSON('sp_answer', { colour: '', source: '' });
+$('colours').innerHTML = COLOURS.map(([k, label, hex]) =>
+  `<button data-c="${k}"><i style="background:${hex}"></i>${label}</button>`).join('');
+$('colours').onclick = e => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  ans.colour = b.dataset.c; drawAnswer();
+};
+$('sources').onclick = e => {
+  const b = e.target.closest('[data-s]'); if (!b) return;
+  ans.source = b.dataset.s; drawAnswer();
+};
+function drawAnswer() {
+  const opts = ['results', ...visited.filter(s => s !== 'results')].map(s => [s, SITES[s].name, SITES[s].host]);
+  opts.push(['self', 'I already knew it', '']);
+  $('sources').innerHTML = opts.map(([k, name, host]) =>
+    `<button data-s="${k}"${ans.source === k ? ' class="on"' : ''}>${esc(name)}${host ? `<br><small>${host}</small>` : ''}</button>`).join('');
+  $('colours').querySelectorAll('[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === ans.colour));
+}
+$('ansBtn').onclick = () => { $('ansErr').hidden = true; drawAnswer(); $('answer').hidden = false; };
+$('ansCancel').onclick = () => $('answer').hidden = true;
+$('answer').onclick = e => { if (e.target === $('answer')) $('answer').hidden = true; };
+$('ansSave').onclick = () => {
+  const err = !ans.colour ? 'Tap a colour.' : !ans.source ? 'Tap where you found it.' : '';
+  if (err) { $('ansErr').textContent = err; $('ansErr').hidden = false; return; }
+  store.set('sp_answer', JSON.stringify(ans));
+  log('answer', ans.source, ans.colour);
+  $('answer').hidden = true;
+  toast('Answer saved ✓');
+};
+
+/* ---------- Start ---------- */
+if (me && CLASSES.includes(me.cls)) { showScreen('app'); go('home'); }
+else showScreen('join');
+</script>
+</body>
+</html>

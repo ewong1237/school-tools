@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Search Practice – Teacher</title>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root {
+  --ink: #1d2433; --muted: #667085; --line: #e4e7ec; --bg: #f5f6fa; --card: #fff;
+  --brand: #6d28d9; --good: #1a7f37; --goodbg: #e6f4ea; --warn: #9a6700; --warnbg: #fff4d6;
+  --bad: #c62828; --badbg: #fdecec;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); background: var(--bg); }
+button { font: inherit; cursor: pointer; }
+[hidden] { display: none !important; }
+header { background: #1f2a44; color: #fff; padding: 12px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+header h1 { font-size: 19px; margin: 0; flex: 1; min-width: 200px; }
+header .who { font-size: 13px; opacity: .8; }
+.hbtn { border: 1px solid rgba(255,255,255,.35); background: transparent; color: #fff; border-radius: 8px; padding: 7px 12px; font-size: 14px; }
+.bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 20px 0; }
+.seg { display: inline-flex; background: #e9ebf2; border-radius: 10px; padding: 3px; }
+.seg button { border: 0; background: transparent; border-radius: 8px; padding: 8px 16px; font-weight: 700; font-size: 15px; color: var(--muted); }
+.seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.status { margin-left: auto; font-size: 13px; color: var(--muted); }
+.danger { border: 1px solid #f1b8b8; background: #fff; color: var(--bad); border-radius: 8px; padding: 7px 12px; font-size: 14px; }
+main { padding: 16px 20px 40px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.card .n { font-size: 32px; font-weight: 800; line-height: 1.1; }
+.card .n small { font-size: 16px; color: var(--muted); font-weight: 600; }
+.card .l { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.card.good .n { color: var(--good); } .card.bad .n { color: var(--bad); } .card.warn .n { color: var(--warn); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+@media (max-width: 800px) { .two { grid-template-columns: 1fr; } }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.panel h2 { font-size: 16px; margin: 0 0 12px; }
+.brow { display: grid; grid-template-columns: 90px 1fr 34px; align-items: center; gap: 10px; margin: 8px 0; font-size: 15px; }
+.btrack { height: 22px; background: #f0f1f5; border-radius: 6px; overflow: hidden; }
+.bfill { height: 100%; border-radius: 6px; }
+.brow .c { text-align: right; font-weight: 700; }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; border: 1px solid rgba(0,0,0,.15); }
+.tricks { list-style: none; margin: 0; padding: 0; }
+.tricks li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.tricks li:last-child { border-bottom: 0; }
+.tricks b { min-width: 28px; text-align: right; }
+.empty { color: var(--muted); font-size: 14px; }
+.tablewrap { margin-top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); background: #fafbfc; position: sticky; top: 0; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr.off td { color: #b0b6c3; }
+tr.risk td:first-child { box-shadow: inset 4px 0 0 var(--bad); }
+td.no { font-weight: 800; font-size: 16px; width: 50px; }
+.tag { display: inline-block; border-radius: 6px; padding: 2px 7px; margin: 1px 3px 2px 0; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.tag.good { background: var(--goodbg); color: var(--good); }
+.tag.warn { background: var(--warnbg); color: var(--warn); }
+.tag.bad { background: var(--badbg); color: var(--bad); }
+.tag.grey { background: #eef0f4; color: var(--muted); }
+.q { color: var(--muted); font-size: 13px; }
+.q b { color: var(--ink); font-weight: 600; }
+.signin { max-width: 420px; margin: 12vh auto; background: #fff; border-radius: 18px; padding: 30px; text-align: center; border: 1px solid var(--line); }
+.signin .err { color: var(--bad); }
+.demo { background: #fff4d6; color: #7a5200; padding: 10px 20px; font-size: 14px; }
+.modal { position: fixed; inset: 0; background: rgba(15,23,42,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.qrbox { background: #fff; border-radius: 20px; padding: 28px; text-align: center; }
+.qrbox #qr { display: inline-block; padding: 10px; }
+.qrbox .link { font-size: 22px; font-weight: 700; margin-top: 10px; word-break: break-all; }
+/* Projector: bigger, and no per-student details */
+body.proj .cards .n { font-size: 46px; }
+body.proj .card .l, body.proj .tricks li, body.proj .brow { font-size: 19px; }
+body.proj .panel h2 { font-size: 20px; }
+</style>
+</head>
+<body>
+
+<div id="signin" class="signin" hidden>
+  <h2>Search Practice – Teacher</h2>
+  <p>Sign in with your @sjps.edu.hk account.</p>
+  <div id="gbtn" style="display:inline-block"></div>
+  <p class="err" id="signin-err" hidden></p>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <h1>🕵️ Search Practice – Teacher</h1>
+    <span class="who" id="who"></span>
+    <button class="hbtn" id="qrBtn">Show QR for students</button>
+    <button class="hbtn" id="signout">Sign out</button>
+  </header>
+  <div class="demo" id="demoNote" hidden>Demo mode: no Apps Script URL is set, so this page shows practice done in this browser only.</div>
+  <div class="bar">
+    <div class="seg" id="clsSeg"></div>
+    <div class="seg" id="viewSeg">
+      <button data-v="teacher" class="on">Teacher view</button>
+      <button data-v="proj">Class view (projector)</button>
+    </div>
+    <span class="status" id="status"></span>
+    <button class="danger" id="clearBtn">Clear this class</button>
+  </div>
+  <main>
+    <div class="cards" id="cards"></div>
+    <div class="two">
+      <div class="panel"><h2>Their answers: what colour is the paper bin?</h2><div id="answers"></div></div>
+      <div class="panel"><h2>What tricked us?</h2><ul class="tricks" id="tricks"></ul></div>
+    </div>
+    <div class="tablewrap" id="tablewrap">
+      <table>
+        <thead><tr><th>No.</th><th>Searches</th><th>Websites opened</th><th>Pop-ups &amp; ads</th><th>Personal info typed</th><th>Answer</th><th>Last active</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<div id="qrModal" class="modal" hidden>
+  <div class="qrbox"><div id="qr"></div><div class="link" id="qrLink"></div><p>Tap anywhere to close</p></div>
+</div>
+
+<script>
+/* ===== Settings: same values as index.html / Code.gs ===== */
+const CONFIG = {
+  CLIENT_ID: '50487504605-rg8pk326ajj8d8j5lckfihn5n9gbevq4.apps.googleusercontent.com',
+  API_URL: '',
+  DOMAIN: 'sjps.edu.hk',
+};
+const DEMO = !CONFIG.API_URL;
+const CLASSES = ['2A', '2B', '2C', '2D', '2E'];
+const MAX_NO = 30;
+
+const SITE = {
+  gov:     ['Gov website ✓', 'good'],
+  facts:   ['HK Bin Facts (fake info)', 'bad'],
+  forum:   ['KidsAsk forum', 'warn'],
+  video:   ['Funny Videos', 'warn'],
+  shop:    ['Bins Shop (ad)', 'warn'],
+  quiz:    ['Prize Club (ad)', 'bad'],
+  prize:   ['Free iPad site', 'bad'],
+  cleaner: ['iPad Cleaner', 'bad'],
+};
+const SOURCE = {
+  results: 'search results page', gov: 'Gov website', facts: 'HK Bin Facts', forum: 'KidsAsk forum',
+  video: 'Funny Videos', shop: 'Bins Shop', quiz: 'Prize Club', prize: 'Free iPad site', cleaner: 'iPad Cleaner', self: 'already knew',
+};
+const POP = { ipad: '“You win a FREE iPad!” pop-up', virus: '“Your iPad has viruses!” pop-up', banner: '“Free iPad giveaway” banner' };
+const POP_SHORT = { ipad: 'iPad prize', virus: 'Virus warning', banner: 'iPad banner' };
+const FIELD = { name: 'Name', school: 'School', class: 'Class', phone: 'Phone', address: 'Address', birthday: 'Birthday' };
+const FIELD_ICON = { name: '🙂', school: '🏫', class: '🔢', phone: '📞', address: '🏠', birthday: '🎂' };
+const COLOURS = { blue: ['Blue', '#1e6fd9'], yellow: ['Yellow', '#ffd23f'], brown: ['Brown', '#8d5a2b'], green: ['Green', '#2e9d4f'], red: ['Red', '#e53935'], black: ['Black', '#222'] };
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+
+/* ---------- Sign-in (same as Book Check) ---------- */
+let token = null;
+function jwtPayload(t) {
+  try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return null; }
+}
+function tokenValid(t) {
+  const p = t && jwtPayload(t);
+  return p && p.exp * 1000 > Date.now() + 60000 && p.hd === CONFIG.DOMAIN;
+}
+function onCredential(resp) {
+  const p = jwtPayload(resp.credential);
+  if (!p || p.hd !== CONFIG.DOMAIN) { showSignin('Please use your @' + CONFIG.DOMAIN + ' account.'); return; }
+  token = resp.credential; store.set('sp_token', token);
+  enterApp(p.email);
+}
+function showSignin(msg) {
+  token = null; store.del('sp_token');
+  $('app').hidden = true; $('signin').hidden = false;
+  $('signin-err').hidden = !msg; $('signin-err').textContent = msg || '';
+}
+function initGoogle() {
+  if (!window.google || !google.accounts) { setTimeout(initGoogle, 100); return; }
+  google.accounts.id.initialize({
+    client_id: CONFIG.CLIENT_ID, callback: onCredential, hd: CONFIG.DOMAIN,
+    auto_select: true, cancel_on_tap_outside: false, use_fedcm_for_prompt: true,
+  });
+  google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', width: 260 });
+  const saved = store.get('sp_token');
+  if (tokenValid(saved)) { token = saved; enterApp(jwtPayload(saved).email); }
+  else { showSignin(); google.accounts.id.prompt(); }
+}
+$('signout').onclick = () => {
+  if (window.google) google.accounts.id.disableAutoSelect();
+  stopPolling(); showSignin();
+};
+
+async function api(action, body = {}) {
+  if (!tokenValid(token)) { showSignin('Your sign-in expired. Please sign in again.'); throw new Error('auth'); }
+  const res = await fetch(CONFIG.API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ action, token }, body)),
+  });
+  const text = await res.text();
+  let out;
+  try { out = JSON.parse(text); }
+  catch { throw new Error('Server said: ' + (new DOMParser().parseFromString(text, 'text/html').body.textContent || text).replace(/\s+/g, ' ').trim().slice(0, 200)); }
+  if (out.auth === false) { showSignin(out.error); throw new Error('auth'); }
+  if (!out.ok) throw new Error(out.error || 'Something went wrong.');
+  return out;
+}
+
+/* ---------- Data ---------- */
+// Each row: [time, class, no, session, eventId, type, site, detail]
+async function loadRows(cls) {
+  if (DEMO) {
+    let rows = [];
+    try { rows = JSON.parse(store.get('sp_demo_log')) || []; } catch {}
+    return rows.filter(r => r[1] === cls);
+  }
+  return (await api('data', { cls })).rows;
+}
+async function clearRows(cls) {
+  if (DEMO) {
+    let rows = [];
+    try { rows = JSON.parse(store.get('sp_demo_log')) || []; } catch {}
+    store.set('sp_demo_log', JSON.stringify(rows.filter(r => r[1] !== cls)));
+    return;
+  }
+  await api('clear', { cls });
+}
+
+function aggregate(rows) {
+  const seen = new Set(), S = {};
+  for (const [time, , noRaw, , id, type, site, detail] of rows) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const no = Number(noRaw);
+    const s = S[no] || (S[no] = { no, last: 0, searches: [], kwOk: false, opened: new Set(),
+      pops: {}, typed: {}, sent: new Set(), shared: false, answer: null });
+    const t = new Date(time).getTime();
+    if (t > s.last) s.last = t;
+    switch (type) {
+      case 'search': s.searches.push({ q: detail, ok: site === 'ok' }); if (site === 'ok') s.kwOk = true; break;
+      case 'open': s.opened.add(site); break;
+      case 'popup_show': (s.pops[site] = s.pops[site] || { shown: 0, tapped: 0, closed: 0 }).shown++; break;
+      case 'popup_tap': (s.pops[site] = s.pops[site] || { shown: 0, tapped: 0, closed: 0 }).tapped++; break;
+      case 'popup_close': (s.pops[site] = s.pops[site] || { shown: 0, tapped: 0, closed: 0 }).closed++; break;
+      case 'typed': (s.typed[site] = s.typed[site] || new Set()).add(detail); break;
+      case 'submit': s.sent.add(site); String(detail).split(',').filter(Boolean).forEach(f => (s.typed[site] = s.typed[site] || new Set()).add(f)); break;
+      case 'share': s.shared = true; break;
+      case 'answer': s.answer = { colour: detail, source: site }; break;
+    }
+  }
+  Object.values(S).forEach(s => {
+    s.tappedScam = Object.values(s.pops).some(p => p.tapped);
+    s.fields = new Set(Object.values(s.typed).flatMap(set => [...set]));
+    s.risk = s.tappedScam || s.fields.size > 0;
+  });
+  return S;
+}
+
+/* ---------- Render ---------- */
+function render(S) {
+  const list = Object.values(S);
+  const n = list.length;
+  const count = f => list.filter(f).length;
+  const answered = list.filter(s => s.answer);
+  const right = count(s => s.answer && s.answer.colour === 'blue');
+  const wrong = answered.length - right;
+
+  const card = (num, label, cls = '', of = n) =>
+    `<div class="card ${cls}"><div class="n">${num}${of !== null ? `<small> / ${of}</small>` : ''}</div><div class="l">${label}</div></div>`;
+  $('cards').innerHTML = [
+    card(n, 'joined', '', MAX_NO),
+    card(count(s => s.kwOk), 'searched with good keywords', 'good'),
+    card(count(s => s.opened.has('gov')), 'opened the government website', 'good'),
+    card(count(s => s.tappedScam), 'tapped a scam pop-up or ad', 'bad'),
+    card(count(s => s.fields.size > 0), 'typed personal information', 'bad'),
+    card(count(s => s.shared), 'shared the fake information', 'warn'),
+    card(right, 'answered Blue (correct)', 'good', answered.length),
+    card(wrong, 'answered a wrong colour', 'bad', answered.length),
+  ].join('');
+
+  // Answers chart
+  const byColour = {};
+  answered.forEach(s => byColour[s.answer.colour] = (byColour[s.answer.colour] || 0) + 1);
+  const max = Math.max(1, ...Object.values(byColour));
+  $('answers').innerHTML = answered.length ? Object.keys(COLOURS).filter(c => byColour[c]).sort((a, b) => byColour[b] - byColour[a]).map(c =>
+    `<div class="brow"><span><span class="dot" style="background:${COLOURS[c][1]}"></span>${COLOURS[c][0]}${c === 'blue' ? ' ✓' : ''}</span>
+      <div class="btrack"><div class="bfill" style="width:${byColour[c] / max * 100}%;background:${COLOURS[c][1]}"></div></div>
+      <span class="c">${byColour[c]}</span></div>`).join('')
+    + wrongSources(answered)
+    : '<p class="empty">No answers yet.</p>';
+
+  // What tricked us
+  const tricks = [];
+  Object.keys(POP).forEach(k => {
+    const tapped = count(s => s.pops[k] && s.pops[k].tapped), closed = count(s => s.pops[k] && s.pops[k].closed && !s.pops[k].tapped);
+    if (tapped) tricks.push([`🚨 Tapped the ${POP[k]}`, tapped]);
+    if (closed && k !== 'banner') tricks.push([`✅ Closed the ${POP[k]} safely`, closed]);
+  });
+  Object.keys(FIELD).forEach(f => {
+    const c = count(s => s.fields.has(f));
+    if (c) tricks.push([`${FIELD_ICON[f]} Typed their ${FIELD[f].toLowerCase()} on a fake website`, c]);
+  });
+  const sentC = count(s => s.sent.size > 0);
+  if (sentC) tricks.push(['📨 Pressed “send” on a fake form', sentC]);
+  [['facts', '📰 Opened the fake “HK Bin Facts” site'], ['quiz', '🏆 Opened the “Win 1000 coins” ad'], ['shop', '🛒 Opened the shopping ad']].forEach(([k, label]) => {
+    const c = count(s => s.opened.has(k)); if (c) tricks.push([label, c]);
+  });
+  $('tricks').innerHTML = tricks.length
+    ? tricks.map(([l, c]) => `<li><span>${l}</span><b>${c}</b></li>`).join('')
+    : '<li class="empty">Nothing yet.</li>';
+
+  // Per-student table
+  const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m + ' min ago'; };
+  let html = '';
+  for (let no = 1; no <= MAX_NO; no++) {
+    const s = S[no];
+    if (!s) { html += `<tr class="off"><td class="no">${no}</td><td colspan="6">not joined</td></tr>`; continue; }
+    const searches = s.searches.length
+      ? `<span class="tag ${s.kwOk ? 'good' : 'grey'}">${s.searches.length} search${s.searches.length > 1 ? 'es' : ''}</span>`
+        + s.searches.slice(-3).map(q => `<div class="q">${q.ok ? '✓' : '✗'} <b>${esc(q.q)}</b></div>`).join('')
+      : '<span class="q">none</span>';
+    const opened = [...s.opened].map(k => SITE[k] ? `<span class="tag ${SITE[k][1]}">${SITE[k][0]}</span>` : '').join('') || '<span class="q">none</span>';
+    const pops = Object.entries(s.pops).map(([k, p]) =>
+      p.tapped ? `<span class="tag bad">Tapped ${POP_SHORT[k]}</span>`
+      : p.closed ? `<span class="tag good">Closed ${POP_SHORT[k]}</span>`
+      : `<span class="tag grey">Saw ${POP_SHORT[k]}</span>`).join('') || '<span class="q">—</span>';
+    const fields = s.fields.size
+      ? [...s.fields].map(f => `<span class="tag bad">${FIELD_ICON[f]} ${FIELD[f]}</span>`).join('')
+        + (s.sent.size ? '<div class="q">📨 pressed send</div>' : '')
+      : '<span class="q">—</span>';
+    const a = s.answer
+      ? `<span class="dot" style="background:${(COLOURS[s.answer.colour] || ['', '#ccc'])[1]}"></span><b>${esc((COLOURS[s.answer.colour] || [s.answer.colour])[0])}</b> ${s.answer.colour === 'blue' ? '✓' : '✗'}<div class="q">from ${esc(SOURCE[s.answer.source] || s.answer.source)}</div>`
+      : '<span class="q">—</span>';
+    html += `<tr class="${s.risk ? 'risk' : ''}"><td class="no">${no}</td><td>${searches}</td><td>${opened}</td><td>${pops}${s.shared ? '<span class="tag warn">Shared fake info</span>' : ''}</td><td>${fields}</td><td>${a}</td><td class="q">${ago(s.last)}</td></tr>`;
+  }
+  $('rows').innerHTML = html;
+}
+
+function wrongSources(answered) {
+  const wrong = answered.filter(s => s.answer.colour !== 'blue');
+  if (!wrong.length) return '';
+  const by = {};
+  wrong.forEach(s => by[s.answer.source] = (by[s.answer.source] || 0) + 1);
+  return `<p class="q" style="margin-top:12px">Wrong answers came from: ${Object.entries(by).sort((a, b) => b[1] - a[1])
+    .map(([k, c]) => `${esc(SOURCE[k] || k)} (${c})`).join(', ')}</p>`;
+}
+
+/* ---------- Controls ---------- */
+let cls = store.get('sp_t_cls') || CLASSES[0], view = 'teacher', pollTimer = null, lastOk = 0;
+$('clsSeg').innerHTML = CLASSES.map(c => `<button data-c="${c}">${c}</button>`).join('');
+function drawSeg() {
+  $('clsSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.c === cls));
+  $('viewSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === view));
+  document.body.classList.toggle('proj', view === 'proj');
+  $('tablewrap').hidden = view === 'proj';
+  $('clearBtn').hidden = view === 'proj';
+}
+$('clsSeg').onclick = e => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  cls = b.dataset.c; store.set('sp_t_cls', cls); drawSeg();
+  $('cards').innerHTML = ''; $('rows').innerHTML = ''; refresh();
+};
+$('viewSeg').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; view = b.dataset.v; drawSeg(); };
+$('clearBtn').onclick = async () => {
+  if (!confirm(`Clear all practice data for ${cls}? (It is moved to the Archive tab in the Sheet.)`)) return;
+  try { await clearRows(cls); refresh(); } catch (err) { if (err.message !== 'auth') alert(err.message); }
+};
+
+const studentUrl = location.href.replace(/teacher\.html.*$/, '').replace(/[?#].*$/, '');
+$('qrBtn').onclick = () => {
+  $('qr').innerHTML = '';
+  if (window.QRCode) new QRCode($('qr'), { text: studentUrl, width: 320, height: 320 });
+  $('qrLink').textContent = studentUrl.replace(/^https?:\/\//, '');
+  $('qrModal').hidden = false;
+};
+$('qrModal').onclick = () => $('qrModal').hidden = true;
+
+let busy = false;
+async function refresh() {
+  if (busy) return;
+  busy = true;
+  const want = cls;
+  try {
+    const rows = await loadRows(want);
+    if (want !== cls) return;
+    render(aggregate(rows));
+    lastOk = Date.now();
+    $('status').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch (err) {
+    if (err.message !== 'auth') $('status').textContent = '⚠️ ' + err.message;
+  } finally { busy = false; }
+}
+function startPolling() { stopPolling(); refresh(); pollTimer = setInterval(() => { if (!document.hidden) refresh(); }, 5000); }
+function stopPolling() { clearInterval(pollTimer); pollTimer = null; }
+
+function enterApp(email) {
+  $('signin').hidden = true; $('app').hidden = false;
+  $('who').textContent = email || '';
+  $('demoNote').hidden = !DEMO;
+  $('signout').hidden = DEMO;
+  drawSeg(); startPolling();
+}
+
+if (DEMO) enterApp('');
+else initGoogle();
+</script>
+</body>
+</html>
