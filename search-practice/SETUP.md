@@ -1,6 +1,6 @@
 # Search Practice — Setup Guide
 
-A practice search engine ("Super Search") for P2 "Super Searchers" Lesson 2.
+A practice search engine ("SJPS Search") for P2 "Super Searchers" Lesson 2.
 Students search for **"What colour is the recycling bin for paper in Hong Kong?"** and meet fake results,
 scam pop-ups and fake forms. The teacher dashboard shows who fell for which trap.
 

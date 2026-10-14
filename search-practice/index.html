@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Super Search Practice</title>
+<title>SJPS Search Practice</title>
 <style>
 :root {
   --ink: #202124; --muted: #5f6368; --line: #dadce0; --link: #1a0dab;
@@ -83,7 +83,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .viewport { position: relative; flex: 1; overflow: hidden; background: #fff; }
 #page { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-/* ---------- Super Search ---------- */
+/* ---------- SJPS Search ---------- */
 .logo { font-weight: 800; letter-spacing: -1.5px; line-height: 1; white-space: nowrap; }
 .logo.big { font-size: clamp(46px, 11vw, 74px); }
 .logo.small { font-size: 28px; letter-spacing: -.5px; }
@@ -309,7 +309,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
     <button id="speak" class="ghost">🔊 Listen</button>
     <br>
     <ol class="steps">
-      <li>Search on <b>Super Search</b>.</li>
+      <li>Search on <b>SJPS Search</b>.</li>
       <li>Find the answer.</li>
       <li>Tap <b>✏️ My Answer</b>.</li>
     </ol>
@@ -368,7 +368,7 @@ const GOV_URL = 'https://www.wastereduction.gov.hk/en-hk/waste-reduction-program
 
 // Every website in the practice. Only "gov" is real; it opens in a new Safari tab.
 const SITES = {
-  results: { name: 'The Super Search results page', host: 'www.supersearch.com' },
+  results: { name: 'The SJPS Search results page', host: 'search.sjps.edu.hk' },
   gov:     { name: 'Hong Kong Waste Reduction Website', host: 'www.wastereduction.gov.hk' },
   facts:   { name: 'HK Bin Facts', host: 'www.hk-bin-facts.net' },
   forum:   { name: 'KidsAsk', host: 'www.kidsask-forum.com' },
@@ -417,7 +417,7 @@ const readJSON = (k, d) => { try { return JSON.parse(store.get(k)) ?? d; } catch
 function logoHTML() {
   const cols = ['#6d28d9', '#ea580c', '#0f766e', '#db2777'];
   let i = 0;
-  return [...'Super Search'].map(c => c === ' ' ? '&nbsp;' : `<span style="color:${cols[i++ % 4]}">${c}</span>`).join('');
+  return [...'SJPS Search'].map(c => c === ' ' ? '&nbsp;' : `<span style="color:${cols[i++ % 4]}">${c}</span>`).join('');
 }
 document.querySelectorAll('[data-logo]').forEach(el => el.innerHTML = logoHTML());
 
@@ -681,14 +681,14 @@ const shown = { resultsPop: false, factsPop: false };
 /* ---------- Pages ---------- */
 const PAGES = {
   home: {
-    url: () => 'https://www.supersearch.com',
+    url: () => 'https://search.sjps.edu.hk',
     render: () => `<div class="home">
       <div class="home-top"><span>Images</span><span>News</span>
         <button class="avatar" id="who" title="Change class or number">${esc(me.cls)}·${me.no}</button></div>
       <div class="home-mid">
         <div class="logo big">${logoHTML()}</div>
         ${searchBox()}
-        <div class="hbtns"><button type="button" id="sbtn">Super Search</button><button type="button" id="clr">Clear</button></div>
+        <div class="hbtns"><button type="button" id="sbtn">SJPS Search</button><button type="button" id="clr">Clear</button></div>
       </div>
       <div class="hfoot">Hong Kong</div>
     </div>`,
@@ -706,7 +706,7 @@ const PAGES = {
   },
 
   results: {
-    url: p => 'https://www.supersearch.com/search?q=' + encodeURIComponent(p.q).replace(/%20/g, '+'),
+    url: p => 'https://search.sjps.edu.hk/search?q=' + encodeURIComponent(p.q).replace(/%20/g, '+'),
     render: p => `
       <div class="rhead"><div class="logo small">${logoHTML()}</div>${searchBox(p.q)}</div>
       <div class="tabs"><span class="on">All</span><span>Images</span><span>Videos</span><span>News</span><span>Maps</span></div>
