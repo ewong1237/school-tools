@@ -371,7 +371,7 @@ $('clearBtn').onclick = async () => {
   try { await clearRows(cls); refresh(); } catch (err) { if (err.message !== 'auth') alert(err.message); }
 };
 
-const studentUrl = location.href.replace(/teacher\.html.*$/, '').replace(/[?#].*$/, '');
+const studentUrl = location.origin + location.pathname.replace(/teacher(\.html)?$/, '');
 $('qrBtn').onclick = () => {
   $('qr').innerHTML = '';
   if (window.QRCode) new QRCode($('qr'), { text: studentUrl, width: 320, height: 320 });

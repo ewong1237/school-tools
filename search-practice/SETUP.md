@@ -28,13 +28,17 @@ The Google sign-in Client ID is the same one Book Check uses, so you don't need 
 
 > After any later change to `Code.gs`: **Deploy › Manage deployments › Edit (pencil) › Version: New version › Deploy**. The URL stays the same.
 
-## 3. Web pages
+## 3. Web pages (Cloudflare, account ps@sjps.edu.hk)
 
 1. Paste the Web app URL into `CONFIG.API_URL` in **both** `index.html` and `teacher.html`.
-2. Push to GitHub. The pages are then at:
-   - Students: `https://ewong1237.github.io/school-tools/search-practice/`
-   - Teacher: `https://ewong1237.github.io/school-tools/search-practice/teacher.html`
-3. On the teacher page, **Show QR for students** puts a big QR code on the projector.
+2. Upload only the two pages (not `Code.gs` or this guide). Copy them into an empty folder, e.g. `cfdist`, sign in with
+   `npx wrangler login` as ps@sjps.edu.hk, then run from the folder above it:
+   `CLOUDFLARE_ACCOUNT_ID=1f9cd5bbd5ad877a92bb08cd96232083 npx wrangler deploy --assets ./cfdist --name sjps-search --compatibility-date 2026-10-01`
+3. The pages are then at:
+   - Students: `https://sjps-search.sjpsps.workers.dev/`
+   - Teacher: `https://sjps-search.sjpsps.workers.dev/teacher`
+4. Google sign-in on the teacher page: add `https://sjps-search.sjpsps.workers.dev` to **Authorised JavaScript origins** of the OAuth client.
+5. On the teacher page, **Show QR for students** puts a big QR code on the projector.
 
 ## In the lesson
 
