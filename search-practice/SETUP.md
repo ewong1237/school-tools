@@ -55,8 +55,7 @@ The Google sign-in Client ID is the same one Book Check uses, so you don't need 
 | KidsAsk | Forum | Children's answers: green, brown, "my mum says blue but not sure" |
 | Funny Videos | Off-topic | Pressing play shows "Your iPad has (3) viruses!", and "Clean Now" leads to a form asking for name and phone |
 
-A "You win a FREE iPad!" pop-up also appears 12 seconds after the results page first opens.
-"CLAIM NOW" leads to a form asking for name, phone, address and school. The small ✕ in the corner is the safe choice.
+On HK Bin Facts, "CLAIM NOW" on the pop-up leads to a form asking for name, phone, address and school. The small ✕ in the corner is the safe choice.
 
 Searches must contain **paper** plus **bin**, **recycling** or **colour** (small spelling mistakes are fine).
 Other searches show "did not match any good results".

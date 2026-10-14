@@ -49,7 +49,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .det { font-size: 72px; line-height: 1; }
 .mission-card h1 { margin: 10px 0 6px; font-size: 30px; color: var(--navy); }
 .mq { font-size: 26px; line-height: 1.35; margin: 12px 0 14px; font-weight: 600; }
-.ghost { border: 2px solid #d6dbe6; background: #fff; border-radius: 999px; padding: 8px 18px; font-size: 17px; }
 .steps { text-align: left; display: inline-block; font-size: 20px; line-height: 1.8; margin: 18px 0 0; padding-left: 28px; }
 
 /* ---------- App shell ---------- */
@@ -95,7 +94,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .home-mid { margin-top: 13vh; width: 100%; max-width: 620px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
 .sbox {
-  display: flex; align-items: center; gap: 10px; width: 100%; height: 54px; padding: 0 8px 0 18px;
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 54px; padding: 0 18px;
   border: 1px solid #dfe1e5; border-radius: 999px; background: #fff;
   box-shadow: 0 1px 6px rgba(32,33,36,.16);
 }
@@ -105,9 +104,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
   font-size: 19px; color: var(--ink); -webkit-appearance: none;
 }
 .sbox input::-webkit-search-decoration, .sbox input::-webkit-search-cancel-button { -webkit-appearance: none; }
-.mic { width: 42px; height: 42px; border: 0; border-radius: 50%; background: transparent; font-size: 21px; }
-.mic.listening { background: #fde2e4; animation: pulse 1s infinite; }
-@keyframes pulse { 50% { transform: scale(1.12); } }
 .hbtns { display: flex; gap: 12px; }
 .hbtns button { background: #f8f9fa; border: 1px solid #f8f9fa; border-radius: 8px; padding: 11px 18px; font-size: 15px; color: #3c4043; }
 .hfoot { margin-top: auto; padding-top: 40px; font-size: 13px; color: #70757a; }
@@ -306,8 +302,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
     <div class="det">🕵️</div>
     <h1>Your Mission</h1>
     <p class="mq">What colour is the recycling bin for <b>PAPER</b> in Hong Kong?</p>
-    <button id="speak" class="ghost">🔊 Listen</button>
-    <br>
     <ol class="steps">
       <li>Search on <b>SJPS Search</b>.</li>
       <li>Find the answer.</li>
@@ -363,7 +357,6 @@ const DEMO = !CONFIG.API_URL;
 
 const CLASSES = ['2A', '2B', '2C', '2D', '2E'];
 const MAX_NO = 30;
-const MISSION = 'What colour is the recycling bin for paper in Hong Kong?';
 const GOV_URL = 'https://www.wastereduction.gov.hk/en-hk/waste-reduction-programme/kerbside-recycling-bin';
 
 // Every website in the practice. Only "gov" is real; it opens in a new Safari tab.
@@ -501,13 +494,6 @@ $('startBtn').onclick = () => {
   log('join');
   showScreen('intro');
 };
-$('speak').onclick = () => {
-  try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance('Your mission. ' + MISSION);
-    u.lang = 'en-GB'; u.rate = 0.85; speechSynthesis.speak(u);
-  } catch {}
-};
 $('goBtn').onclick = () => { showScreen('app'); go('home'); };
 
 function showScreen(id) {
@@ -580,25 +566,11 @@ function wireSearch() {
   form.onsubmit = e => { e.preventDefault(); input.blur(); doSearch(input.value); };
   const sbtn = $('sbtn'); if (sbtn) sbtn.onclick = () => doSearch(input.value);
   const clr = $('clr'); if (clr) clr.onclick = () => { input.value = ''; input.focus(); };
-  const mic = $('mic');
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { mic.hidden = true; return; }
-  mic.onclick = () => {
-    try {
-      const r = new SR();
-      r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 1;
-      r.onresult = e => { input.value = e.results[0][0].transcript; doSearch(input.value); };
-      r.onend = () => mic.classList.remove('listening');
-      r.onerror = () => mic.classList.remove('listening');
-      mic.classList.add('listening'); r.start();
-    } catch { mic.classList.remove('listening'); }
-  };
 }
 const searchBox = (q = '') => `
   <form class="sbox" id="sform" role="search">
     <span class="mag">🔍</span>
     <input id="q" type="search" enterkeyhint="search" autocomplete="off" aria-label="Search" value="${esc(q)}">
-    <button type="button" class="mic" id="mic" aria-label="Search by voice">🎤</button>
   </form>`;
 
 /* ---------- Forms on the fake sites ----------
@@ -676,7 +648,7 @@ function closePopup(silent) {
   $('pop').hidden = true; $('pop').innerHTML = '';
   if (silent) afterPopup = null;
 }
-const shown = { resultsPop: false, factsPop: false };
+const shown = { factsPop: false };
 
 /* ---------- Pages ---------- */
 const PAGES = {
@@ -733,7 +705,6 @@ const PAGES = {
       $('page').querySelectorAll('[data-go]').forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.go); });
       const gov = $('page').querySelector('[data-gov]');
       if (gov) gov.onclick = () => { log('open', 'gov'); addVisited('gov'); flush(true); };
-      if (p.ok && !shown.resultsPop) later(() => { shown.resultsPop = true; showPopup('ipad'); }, 12000);
     },
   },
 
